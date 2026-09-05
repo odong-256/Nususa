@@ -1,0 +1,12 @@
+{
+  "projectId": "nususa-online-voting",
+  "appId": "1:764953716473:web:05ea97d41119570d3fa428",
+  "apiKey": "AIzaSyAzNlcIQ7_79VqsVe9alPz8i6QLBpbvqLs",
+  "authDomain": "nususa-online-voting.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "nususa-online-voting.firebasestorage.app",
+  "messagingSenderId": "764953716473",
+  "measurementId": "",
+  "oAuthClientId": "",
+  "recaptchaSiteKey": ""
+}

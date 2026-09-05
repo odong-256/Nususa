@@ -1,0 +1,6 @@
+{
+  "name": "NUSUSA Online Voting System",
+  "description": "A university election platform where students can register, get approved by administrators, view candidates and securely vote.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

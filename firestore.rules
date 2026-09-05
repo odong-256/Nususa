@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == '2301600199@sun.ac.ug' ||
+          request.auth.token.email.matches('(?i)^2301600199@sun\\.ac\\.ug$')
+        ))
+      );
+    }
+
+    function isApprovedVoter() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved')
+      );
+    }
+
+    // Users Collection (Voter profiles)
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() && isOwner(userId) && (
+        isAdmin() ||
+        (incoming().role in ['voter', 'admin'] && incoming().status in ['pending', 'approved'])
+      );
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'updatedAt', 'studentId']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Elections Collection (Publicly visible calendar and notices)
+    match /elections/{electionId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isApprovedVoter() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['totalVotesCount', 'updatedAt'])
+      );
+    }
+
+    // Positions Collection (Publicly visible electoral offices)
+    match /positions/{positionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Candidates Collection (Publicly visible manifestos and profiles)
+    match /candidates/{candidateId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isApprovedVoter() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['voteCount'])
+      );
+    }
+
+    // Ballots Collection
+    match /ballots/{ballotId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.voterId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.voterId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() &&
+                    incoming().voterId == request.auth.uid &&
+                    isApprovedVoter() &&
+                    ballotId == (incoming().electionId + '_' + request.auth.uid) &&
+                    exists(/databases/$(database)/documents/elections/$(incoming().electionId)) &&
+                    get(/databases/$(database)/documents/elections/$(incoming().electionId)).data.status == 'open';
+      allow update, delete: if false; // Ballots are strictly immutable
+    }
+
+    // Audit Logs Collection
+    match /auditLogs/{logId} {
+      allow read: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // Append-only audit trail
+    }
+
+    // Connection check test document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

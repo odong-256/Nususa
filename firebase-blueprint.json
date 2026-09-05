@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "Voter account information and approval status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "User UID" },
+        "fullName": { "type": "string", "description": "Full legal student name" },
+        "email": { "type": "string", "description": "Institutional email address ending in @sun.ac.ug" },
+        "studentId": { "type": "string", "description": "Student registration number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "suspended"], "description": "Voter verification status" },
+        "role": { "type": "string", "enum": ["voter", "admin"], "description": "Platform role" },
+        "createdAt": { "type": "string", "description": "Account registration timestamp" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" },
+        "approvedAt": { "type": "string", "description": "Approval timestamp if approved" },
+        "approvedBy": { "type": "string", "description": "Admin UID who approved voter" }
+      },
+      "required": ["fullName", "email", "status", "role", "createdAt"]
+    },
+    "admins": {
+      "title": "Admin",
+      "description": "Designated administrative accounts with full privileges",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Admin UID or email" },
+        "email": { "type": "string", "description": "Admin email" },
+        "name": { "type": "string", "description": "Admin full name" },
+        "role": { "type": "string", "description": "Role title" },
+        "createdAt": { "type": "string", "description": "Created timestamp" }
+      },
+      "required": ["email", "role"]
+    },
+    "elections": {
+      "title": "Election",
+      "description": "Election event information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Election ID" },
+        "title": { "type": "string", "description": "Title of the election" },
+        "description": { "type": "string", "description": "Detailed description and rules" },
+        "academicYear": { "type": "string", "description": "Academic year (e.g., 2026/2027)" },
+        "status": { "type": "string", "enum": ["draft", "scheduled", "open", "closed", "archived"], "description": "Current election status" },
+        "startDate": { "type": "string", "description": "Voting start date and time ISO" },
+        "endDate": { "type": "string", "description": "Voting end date and time ISO" },
+        "isPublicResults": { "type": "boolean", "description": "Whether results are public" },
+        "totalVotesCount": { "type": "number", "description": "Total ballots cast" },
+        "createdAt": { "type": "string", "description": "Created timestamp" },
+        "updatedAt": { "type": "string", "description": "Updated timestamp" }
+      },
+      "required": ["title", "status", "startDate", "endDate", "createdAt"]
+    },
+    "positions": {
+      "title": "Position",
+      "description": "Electoral office or post open for voting",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Position ID" },
+        "electionId": { "type": "string", "description": "Associated election ID" },
+        "title": { "type": "string", "description": "Position title (e.g. Guild President)" },
+        "order": { "type": "number", "description": "Display ranking order" },
+        "description": { "type": "string", "description": "Position duties and requirements" },
+        "maxChoices": { "type": "number", "description": "Maximum candidates voter can select" },
+        "createdAt": { "type": "string", "description": "Created timestamp" }
+      },
+      "required": ["electionId", "title", "order"]
+    },
+    "candidates": {
+      "title": "Candidate",
+      "description": "Nominated student candidate running for a position",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Candidate ID" },
+        "electionId": { "type": "string", "description": "Election ID" },
+        "positionId": { "type": "string", "description": "Position ID" },
+        "fullName": { "type": "string", "description": "Candidate full name" },
+        "photoUrl": { "type": "string", "description": "Profile photo URL" },
+        "slogan": { "type": "string", "description": "Campaign slogan" },
+        "biography": { "type": "string", "description": "Brief biography" },
+        "qualifications": { "type": "string", "description": "Academic qualifications and program" },
+        "experience": { "type": "string", "description": "Leadership and campus experience" },
+        "vision": { "type": "string", "description": "Candidate vision" },
+        "mission": { "type": "string", "description": "Candidate mission" },
+        "manifesto": { "type": "string", "description": "Detailed policy manifesto" },
+        "objectives": { "type": "string", "description": "Key campaign objectives" },
+        "voteCount": { "type": "number", "description": "Tallied votes for candidate" },
+        "createdAt": { "type": "string", "description": "Registration timestamp" }
+      },
+      "required": ["electionId", "positionId", "fullName", "slogan"]
+    },
+    "ballots": {
+      "title": "Ballot",
+      "description": "A voter's recorded vote submission for an election",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Ballot document ID: electionId_voterUid" },
+        "electionId": { "type": "string", "description": "Election ID" },
+        "voterId": { "type": "string", "description": "Voter UID" },
+        "voterEmail": { "type": "string", "description": "Voter institutional email" },
+        "selections": { "type": "string", "description": "JSON map of positionId to candidateId" },
+        "submittedAt": { "type": "string", "description": "Submission timestamp" },
+        "receiptCode": { "type": "string", "description": "Cryptographic receipt verification code" }
+      },
+      "required": ["electionId", "voterId", "selections", "submittedAt"]
+    },
+    "auditLogs": {
+      "title": "AuditLog",
+      "description": "Audit trail log record for system activities",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Log ID" },
+        "action": { "type": "string", "description": "Action performed" },
+        "category": { "type": "string", "description": "Category (auth, election, ballot, admin, candidate)" },
+        "performedBy": { "type": "string", "description": "Email or UID of actor" },
+        "details": { "type": "string", "description": "Human readable details" },
+        "metadata": { "type": "string", "description": "Additional JSON parameters" },
+        "timestamp": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["action", "category", "performedBy", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "Voter profiles, approval status, and institutional metadata"
+    },
+    "/admins/{adminId}": {
+      "schema": "admins",
+      "description": "Collection of verified administrator user IDs"
+    },
+    "/elections/{electionId}": {
+      "schema": "elections",
+      "description": "Elections with statuses, dates, and settings"
+    },
+    "/positions/{positionId}": {
+      "schema": "positions",
+      "description": "Contested leadership positions per election"
+    },
+    "/candidates/{candidateId}": {
+      "schema": "candidates",
+      "description": "Candidates running for leadership positions"
+    },
+    "/ballots/{ballotId}": {
+      "schema": "ballots",
+      "description": "Encrypted or hashed voter ballots, uniquely keyed by election and voter"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "auditLogs",
+      "description": "Immutable security and action audit logs"
+    }
+  }
+}
