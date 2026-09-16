@@ -47,35 +47,32 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
       // Synthesize fallback profile for active user
       const currentUser = auth.currentUser;
-      if (currentUser && currentUser.uid === userId) {
-        const email = (currentUser.email || '').toLowerCase();
-        const isRoot = email === ROOT_ADMIN_EMAIL.toLowerCase();
-        const autoMatch = findAutoQualifiedStudent(email);
-        const fallbackProfile: UserProfile = {
-          id: userId,
-          uid: userId,
-          fullName: autoMatch?.fullName || currentUser.displayName || (isRoot ? 'Chief Electoral Commissioner' : email.split('@')[0]),
-          email: email,
-          studentId: autoMatch?.registrationNumber || email.split('@')[0],
-          status: isRoot || autoMatch ? 'approved' : 'pending',
-          role: isRoot ? 'admin' : 'voter',
-          course: autoMatch?.course || (isRoot ? 'Executive Commission' : undefined),
-          yearOfStudy: autoMatch?.yearOfStudy || undefined,
-          phoneNumber: autoMatch?.phoneNumber || undefined,
-          createdAt: new Date().toISOString(),
-          ...(isRoot || autoMatch ? {
-            approvedAt: new Date().toISOString(),
-            approvedBy: isRoot ? 'Institutional Authority' : 'System (Certified University Register)'
-          } : {})
-        };
-        try {
-          localStorage.setItem(localKey, JSON.stringify(fallbackProfile));
-        } catch {
-          // ignore
-        }
-        return fallbackProfile;
+      const email = (currentUser?.email || '').toLowerCase();
+      const isRoot = email === ROOT_ADMIN_EMAIL.toLowerCase();
+      const autoMatch = findAutoQualifiedStudent(email) || findAutoQualifiedStudent(userId);
+      const fallbackProfile: UserProfile = {
+        id: userId,
+        uid: userId,
+        fullName: autoMatch?.fullName || currentUser?.displayName || (isRoot ? 'Chief Electoral Commissioner' : (email ? email.split('@')[0] : 'NUSUSA Student')),
+        email: email || (autoMatch?.email || ''),
+        studentId: autoMatch?.registrationNumber || (email ? email.split('@')[0] : 'STD-' + userId.slice(0, 6)),
+        status: isRoot || autoMatch ? 'approved' : 'pending',
+        role: isRoot ? 'admin' : 'voter',
+        course: autoMatch?.course || (isRoot ? 'Executive Commission' : undefined),
+        yearOfStudy: autoMatch?.yearOfStudy || undefined,
+        phoneNumber: autoMatch?.phoneNumber || undefined,
+        createdAt: new Date().toISOString(),
+        ...(isRoot || autoMatch ? {
+          approvedAt: new Date().toISOString(),
+          approvedBy: isRoot ? 'Institutional Authority' : 'System (Certified University Register)'
+        } : {})
+      };
+      try {
+        localStorage.setItem(localKey, JSON.stringify(fallbackProfile));
+      } catch {
+        // ignore
       }
-      return null;
+      return fallbackProfile;
     }
 
     if (isPermissionError(error)) {
