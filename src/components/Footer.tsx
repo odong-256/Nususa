@@ -4,129 +4,103 @@ import { Vote, ShieldCheck, Mail, MapPin, Phone, ExternalLink } from 'lucide-rea
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+    <footer className="bg-white text-slate-600 border-t border-slate-200">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand & Mission */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5">
               <img
                 src="/nususa-logo.jpg"
                 alt="NUSUSA Logo"
                 referrerPolicy="no-referrer"
-                className="w-12 h-12 rounded-full object-contain bg-white border border-emerald-500/40 p-0.5 shadow-md shrink-0"
+                className="w-9 h-9 rounded-md object-contain bg-white border border-slate-200 p-0.5 shrink-0"
               />
               <div>
-                <span className="text-xl font-black text-white tracking-tight block">NUSUSA</span>
-                <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider block">Unity in Diversity</span>
+                <span className="text-xs sm:text-sm font-bold text-[#102a43] tracking-widest uppercase block">
+                  NUSUSA Elections
+                </span>
+                <span className="text-[10px] text-slate-500 block">Electoral Commission</span>
               </div>
             </div>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Northern Uganda Soroti University Students Association (NUSUSA) Electoral Commission. Empowering student
-              democracy through a secure, transparent, and audited digital voting infrastructure.
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Official digital voting and results portal for Soroti University Students Association elections.
             </p>
-            <div className="flex items-center gap-2 text-xs text-emerald-400 font-mono">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Institutional Cloud Encryption Enabled</span>
+            <div className="flex items-center gap-1.5 text-xs text-[#102a43] font-medium">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Verified Identity Infrastructure</span>
             </div>
           </div>
 
           {/* Quick Links */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-white">
-              Electoral Portal
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#102a43]">
+              Quick Links
             </h4>
-            <ul className="space-y-2 text-xs sm:text-sm text-slate-400">
+            <ul className="space-y-1.5 text-xs text-slate-600">
               <li>
-                <Link to="/" className="hover:text-emerald-400 transition-colors">
+                <Link to="/" className="hover:text-[#102a43] transition-colors">
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/candidates" className="text-emerald-400 font-semibold hover:text-emerald-300 transition-colors">
-                  Official Candidate Gazette (2026/2027)
+                <Link to="/candidates" className="hover:text-[#102a43] transition-colors">
+                  Candidates Gazette
                 </Link>
               </li>
               <li>
-                <a href="/#how-it-works" className="hover:text-emerald-400 transition-colors">
-                  Voting Guidelines
+                <a href="/#how-it-works" className="hover:text-[#102a43] transition-colors">
+                  How Voting Works
                 </a>
               </li>
               <li>
-                <a href="/#about" className="hover:text-emerald-400 transition-colors">
+                <a href="/#about" className="hover:text-[#102a43] transition-colors">
                   About NUSUSA
                 </a>
               </li>
               <li>
-                <Link to="/auth/login" className="hover:text-emerald-400 transition-colors">
+                <a href="/#faq" className="hover:text-[#102a43] transition-colors">
+                  Frequently Asked Questions (FAQ)
+                </a>
+              </li>
+              <li>
+                <Link to="/auth/login" className="hover:text-[#102a43] transition-colors">
                   Student Login
                 </Link>
               </li>
-              <li>
-                <Link to="/auth/register" className="hover:text-emerald-400 transition-colors">
-                  Voter Registration
-                </Link>
-              </li>
             </ul>
           </div>
 
-          {/* Electoral Commission Code */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-white">
-              Integrity & Standards
-            </h4>
-            <ul className="space-y-2 text-xs sm:text-sm text-slate-400">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span>One Student, One Ballot Rule</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span>Strict @sun.ac.ug Domain Verification</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span>Electoral Commission Identity Approval</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span>Immutable Ballot Recording</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span>Cryptographic Ballot Receipt</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Contact & Support */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-white">
+          {/* Contact & Secretariat */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#102a43]">
               Electoral Office
             </h4>
-            <div className="space-y-2.5 text-xs sm:text-sm text-slate-400">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="space-y-2 text-xs text-slate-600">
+              <div className="flex items-start gap-2">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                 <span>NUSUSA Secretariat, Soroti University Main Campus, Soroti, Uganda</span>
               </div>
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>ec@sun.ac.ug</span>
+              <div className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <a href="mailto:2301600199@sun.ac.ug" className="hover:text-[#102a43] transition-colors">
+                  2301600199@sun.ac.ug
+                </a>
               </div>
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>+256 (0) 454 448 830</span>
+              <div className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <a href="tel:0760073338" className="hover:text-[#102a43] transition-colors">
+                  0760073338
+                </a>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© 2026 Northern Uganda Soroti University Students Association (NUSUSA). All rights reserved.</p>
-          <p className="flex items-center gap-2">
-            <span>Powered by NUSUSA Electoral Cloud System</span>
-            <span>•</span>
-            <span className="text-emerald-400">Node.js 26 Ready</span>
+        <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <p>© 2026 Northern Uganda Soroti University Students Association. All rights reserved.</p>
+          <p className="flex items-center gap-1.5">
+            <span>Official NUSUSA Electoral Portal</span>
           </p>
         </div>
       </div>

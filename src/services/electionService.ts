@@ -10,7 +10,8 @@ import {
   where,
   orderBy,
   runTransaction,
-  increment
+  increment,
+  onSnapshot
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import {
@@ -26,25 +27,74 @@ import { handleFirestoreError, OperationType } from './firestoreErrors';
 import { logAuditEvent } from './auditService';
 import { getAllVoters } from './voterService';
 
+// --- IN-MEMORY CACHE FOR HIGH-SPEED PAGE LOADS ---
+interface CacheItem<T> {
+  data: T;
+  cachedAt: number;
+}
+
+const memoryCache = new Map<string, CacheItem<any>>();
+const CACHE_TTL_MS = 30_000; // 30 seconds default TTL for instant page-to-page navigation
+
+export function getCached<T>(key: string): T | null {
+  const item = memoryCache.get(key);
+  if (!item) return null;
+  if (Date.now() - item.cachedAt > CACHE_TTL_MS) {
+    memoryCache.delete(key);
+    return null;
+  }
+  return item.data as T;
+}
+
+export function setCached<T>(key: string, data: T): void {
+  memoryCache.set(key, { data, cachedAt: Date.now() });
+}
+
+export function invalidateCache(prefix?: string): void {
+  if (!prefix) {
+    memoryCache.clear();
+    return;
+  }
+  for (const k of Array.from(memoryCache.keys())) {
+    if (k.startsWith(prefix)) {
+      memoryCache.delete(k);
+    }
+  }
+}
+
 // --- ELECTIONS ---
 
-export async function getAllElections(): Promise<Election[]> {
+export async function getAllElections(forceRefresh = false): Promise<Election[]> {
+  const cacheKey = 'elections:all';
+  if (!forceRefresh) {
+    const cached = getCached<Election[]>(cacheKey);
+    if (cached) return cached;
+  }
   const path = 'elections';
   try {
     const q = query(collection(db, path), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Election[];
+    const results = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Election[];
+    setCached(cacheKey, results);
+    return results;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
 }
 
-export async function getElectionById(id: string): Promise<Election | null> {
+export async function getElectionById(id: string, forceRefresh = false): Promise<Election | null> {
+  const cacheKey = `election:${id}`;
+  if (!forceRefresh) {
+    const cached = getCached<Election | null>(cacheKey);
+    if (cached !== null && cached !== undefined) return cached;
+  }
   const path = `elections/${id}`;
   try {
     const d = await getDoc(doc(db, 'elections', id));
     if (d.exists()) {
-      return { id: d.id, ...d.data() } as Election;
+      const data = { id: d.id, ...d.data() } as Election;
+      setCached(cacheKey, data);
+      return data;
     }
     return null;
   } catch (error) {
@@ -68,6 +118,7 @@ export async function createElection(
 
   try {
     await setDoc(doc(db, 'elections', electionId), newElection);
+    invalidateCache('election');
     await logAuditEvent(
       'Election Created',
       'election',
@@ -92,6 +143,7 @@ export async function updateElection(
       ...updates,
       updatedAt: new Date().toISOString()
     });
+    invalidateCache('election');
     await logAuditEvent(
       'Election Updated',
       'election',
@@ -115,6 +167,7 @@ export async function setElectionStatus(
       status: newStatus,
       updatedAt: new Date().toISOString()
     });
+    invalidateCache('election');
     await logAuditEvent(
       `Election ${newStatus.toUpperCase()}`,
       'election',
@@ -143,6 +196,7 @@ export async function deleteElection(
   const path = `elections/${id}`;
   try {
     await deleteDoc(doc(db, 'elections', id));
+    invalidateCache('election');
     await logAuditEvent(
       'Election Deleted',
       'election',
@@ -156,13 +210,20 @@ export async function deleteElection(
 
 // --- POSITIONS ---
 
-export async function getPositionsByElection(electionId: string): Promise<Position[]> {
+export async function getPositionsByElection(electionId: string, forceRefresh = false): Promise<Position[]> {
+  const cacheKey = `positions:${electionId}`;
+  if (!forceRefresh) {
+    const cached = getCached<Position[]>(cacheKey);
+    if (cached) return cached;
+  }
   const path = 'positions';
   try {
     const q = query(collection(db, path), where('electionId', '==', electionId));
     const snapshot = await getDocs(q);
     const positions = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Position[];
-    return positions.sort((a, b) => a.order - b.order);
+    const sorted = positions.sort((a, b) => a.order - b.order);
+    setCached(cacheKey, sorted);
+    return sorted;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
@@ -183,6 +244,7 @@ export async function createPosition(
 
   try {
     await setDoc(doc(db, 'positions', posId), newPos);
+    invalidateCache('positions');
     await logAuditEvent(
       'Position Created',
       'election',
@@ -204,6 +266,7 @@ export async function updatePosition(
   const path = `positions/${id}`;
   try {
     await updateDoc(doc(db, 'positions', id), updates);
+    invalidateCache('positions');
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
@@ -217,6 +280,7 @@ export async function deletePosition(
   const path = `positions/${id}`;
   try {
     await deleteDoc(doc(db, 'positions', id));
+    invalidateCache('positions');
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -224,25 +288,44 @@ export async function deletePosition(
 
 // --- CANDIDATES ---
 
-export async function getAllCandidates(electionId?: string): Promise<Candidate[]> {
+export async function getAllCandidates(electionId?: string, forceRefresh = false): Promise<Candidate[]> {
+  const cacheKey = `candidates:${electionId || 'all'}`;
+  if (!forceRefresh) {
+    const cached = getCached<Candidate[]>(cacheKey);
+    if (cached) return cached;
+  }
   const path = 'candidates';
   try {
     const q = electionId
       ? query(collection(db, path), where('electionId', '==', electionId))
       : collection(db, path);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-      votesCount: d.data().votesCount ?? d.data().voteCount ?? 0
-    })) as Candidate[];
+    const list = snapshot.docs.map(d => {
+      const data = d.data();
+      const officialMatch = OFFICIAL_NUSUSA_2026_POSITIONS.find(
+        p => p.candidateName && data.fullName && (
+          p.candidateName.trim().toLowerCase() === data.fullName.trim().toLowerCase() ||
+          (p.candidateName.toLowerCase().includes('jonathan') && data.fullName.toLowerCase().includes('jonathan'))
+        )
+      );
+      return {
+        id: d.id,
+        ...data,
+        department: data.department || officialMatch?.department || '',
+        yearOfStudy: data.yearOfStudy || officialMatch?.yearOfStudy || '',
+        phoneNumber: data.phoneNumber || officialMatch?.phoneNumber || '',
+        votesCount: data.votesCount ?? data.voteCount ?? 0
+      };
+    }) as Candidate[];
+    setCached(cacheKey, list);
+    return list;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
 }
 
-export async function getCandidatesByElection(electionId: string): Promise<Candidate[]> {
-  return getAllCandidates(electionId);
+export async function getCandidatesByElection(electionId: string, forceRefresh = false): Promise<Candidate[]> {
+  return getAllCandidates(electionId, forceRefresh);
 }
 
 export async function createCandidate(
@@ -262,6 +345,7 @@ export async function createCandidate(
 
   try {
     await setDoc(doc(db, 'candidates', candId), newCandidate);
+    invalidateCache('candidates');
     await logAuditEvent(
       'Candidate Registered',
       'candidate',
@@ -283,6 +367,7 @@ export async function updateCandidate(
   const path = `candidates/${id}`;
   try {
     await updateDoc(doc(db, 'candidates', id), updates);
+    invalidateCache('candidates');
     await logAuditEvent(
       'Candidate Updated',
       'candidate',
@@ -302,6 +387,7 @@ export async function deleteCandidate(
   const path = `candidates/${id}`;
   try {
     await deleteDoc(doc(db, 'candidates', id));
+    invalidateCache('candidates');
     await logAuditEvent(
       'Candidate Deleted',
       'candidate',
@@ -315,24 +401,38 @@ export async function deleteCandidate(
 
 // --- BALLOTS & VOTING WORKFLOW ---
 
-export async function checkHasVoted(electionId: string, voterId: string): Promise<boolean> {
+export async function checkHasVoted(electionId: string, voterId: string, forceRefresh = false): Promise<boolean> {
+  const cacheKey = `hasVoted:${electionId}:${voterId}`;
+  if (!forceRefresh) {
+    const cached = getCached<boolean>(cacheKey);
+    if (typeof cached === 'boolean') return cached;
+  }
   const ballotDocId = `${electionId}_${voterId}`;
   const path = `ballots/${ballotDocId}`;
   try {
     const d = await getDoc(doc(db, 'ballots', ballotDocId));
-    return d.exists();
+    const exists = d.exists();
+    setCached(cacheKey, exists);
+    return exists;
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, path);
   }
 }
 
-export async function getVoterBallot(electionId: string, voterId: string): Promise<Ballot | null> {
+export async function getVoterBallot(electionId: string, voterId: string, forceRefresh = false): Promise<Ballot | null> {
+  const cacheKey = `ballot:${electionId}:${voterId}`;
+  if (!forceRefresh) {
+    const cached = getCached<Ballot | null>(cacheKey);
+    if (cached !== null && cached !== undefined) return cached;
+  }
   const ballotDocId = `${electionId}_${voterId}`;
   const path = `ballots/${ballotDocId}`;
   try {
     const d = await getDoc(doc(db, 'ballots', ballotDocId));
     if (d.exists()) {
-      return { id: d.id, ...d.data() } as Ballot;
+      const b = { id: d.id, ...d.data() } as Ballot;
+      setCached(cacheKey, b);
+      return b;
     }
     return null;
   } catch (error) {
@@ -409,6 +509,11 @@ export async function submitBallot(
       `Ballot cast for election ${electionId}. Receipt: ${receiptCode}`,
       { electionId, receiptCode }
     );
+
+    invalidateCache('election');
+    invalidateCache('candidates');
+    invalidateCache('hasVoted');
+    invalidateCache('ballot');
 
     return ballotData;
   } catch (error: any) {
@@ -493,36 +598,122 @@ export async function getElectionResults(electionId: string): Promise<ResultsSum
   };
 }
 
+/**
+ * Real-time listener that monitors an active election and its candidates for newly cast ballots.
+ * Automatically notifies when new votes are cast without requiring a full page refresh.
+ */
+export function subscribeToElectionLiveUpdates(
+  electionId: string,
+  onVoteCast: (newTotalVotes: number, previousTotalVotes: number) => void,
+  onError?: (error: any) => void
+): () => void {
+  if (!electionId) return () => {};
+
+  let previousVotes: number | null = null;
+  let previousCandidateVotesTotal: number | null = null;
+  let hasInitialized = false;
+
+  const electionDocRef = doc(db, 'elections', electionId);
+  const candidatesQuery = query(collection(db, 'candidates'), where('electionId', '==', electionId));
+
+  const checkAndNotify = (currentVotes: number) => {
+    if (previousVotes !== null && currentVotes > previousVotes) {
+      const prev = previousVotes;
+      previousVotes = currentVotes;
+      onVoteCast(currentVotes, prev);
+    } else {
+      previousVotes = currentVotes;
+    }
+  };
+
+  const unsubElection = onSnapshot(
+    electionDocRef,
+    (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+      const currentVotes = Number(data.totalVotesCount || 0);
+
+      if (!hasInitialized) {
+        previousVotes = currentVotes;
+        hasInitialized = true;
+      } else if (previousVotes !== null && currentVotes > previousVotes) {
+        checkAndNotify(currentVotes);
+      } else {
+        previousVotes = Math.max(previousVotes ?? 0, currentVotes);
+      }
+    },
+    (err) => {
+      console.warn('Live election subscription error:', err);
+      if (onError) onError(err);
+    }
+  );
+
+  const unsubCandidates = onSnapshot(
+    candidatesQuery,
+    (snapshot) => {
+      let candidateVotesTotal = 0;
+      snapshot.docs.forEach(doc => {
+        const d = doc.data();
+        candidateVotesTotal += Number(d.voteCount || d.votesCount || 0);
+      });
+
+      if (previousCandidateVotesTotal === null) {
+        previousCandidateVotesTotal = candidateVotesTotal;
+      } else if (candidateVotesTotal > previousCandidateVotesTotal) {
+        const diff = candidateVotesTotal - previousCandidateVotesTotal;
+        previousCandidateVotesTotal = candidateVotesTotal;
+        const currentTotal = (previousVotes ?? 0) + diff;
+        checkAndNotify(currentTotal);
+      }
+    },
+    (err) => {
+      console.warn('Live candidates subscription error:', err);
+      if (onError) onError(err);
+    }
+  );
+
+  return () => {
+    unsubElection();
+    unsubCandidates();
+  };
+}
+
 // --- DEFAULT SEEDING IF DB EMPTY ---
 
-// --- OFFICIAL 22 POSITIONS FOR NUSUSA ELECTIONS 2026/2027 ---
+// --- OFFICIAL 13 NOMINATED POSITIONS FOR NUSUSA ELECTIONS 2026/2027 ---
+// Vacant offices without nominees have been pruned per electoral directives.
 export const OFFICIAL_NUSUSA_2026_POSITIONS: {
   order: number;
   title: string;
-  candidateName: string | null;
+  candidateName: string;
+  department?: string;
+  yearOfStudy?: string;
+  phoneNumber?: string;
+  slogan?: string;
+  biography?: string;
 }[] = [
-  { order: 1, title: 'President', candidateName: 'Rwoth-Omiyo Franklyn' },
-  { order: 2, title: 'Vice President', candidateName: 'Okemo Olwoch Constant' },
-  { order: 3, title: 'Speaker', candidateName: 'Adot Pa Olal Emmy Odoc' },
-  { order: 4, title: 'Deputy Speaker', candidateName: null },
-  { order: 5, title: 'General Secretary', candidateName: 'Bua Howard' },
-  { order: 6, title: 'Deputy General Secretary', candidateName: 'Okello Brahams' },
-  { order: 7, title: 'Treasurer', candidateName: 'Akello Flavia Nancy' },
-  { order: 8, title: 'Vice Treasurer', candidateName: null },
-  { order: 9, title: 'Sec. Internal and External Affairs', candidateName: null },
-  { order: 10, title: 'Deputy Sec. Internal and External Affairs', candidateName: null },
-  { order: 11, title: 'Chief Whip / Chairperson Disciplinary', candidateName: null },
-  { order: 12, title: 'Chief Mobiliser', candidateName: 'Ogaba Francis' },
-  { order: 13, title: 'Deputy Mobiliser', candidateName: 'Lamwaka Faith Alam' },
-  { order: 14, title: 'Welfare Director', candidateName: null },
-  { order: 15, title: 'Deputy Welfare Director', candidateName: null },
-  { order: 16, title: 'Sec. Publicity', candidateName: 'Obenyo Abraham' },
-  { order: 17, title: 'Deputy Sec. Publicity', candidateName: null },
-  { order: 18, title: 'Sec. Education and Sports', candidateName: null },
-  { order: 19, title: 'Deputy Sec. Education and Sports', candidateName: null },
-  { order: 20, title: 'Sec. Culture', candidateName: null },
-  { order: 21, title: 'Deputy Sec. Culture', candidateName: null },
-  { order: 22, title: 'Project Manager', candidateName: 'Akona Festus' },
+  { order: 1, title: 'President', candidateName: 'Rwoth-Omiyo Franklyn', department: 'Medicine & Surgery', yearOfStudy: 'Year 4' },
+  { order: 2, title: 'Vice President', candidateName: 'Okemo Olwoch Constant', department: 'Computer Engineering', yearOfStudy: 'Year 3' },
+  { order: 3, title: 'Speaker', candidateName: 'Adot Pa Olal Emmy Odoc', department: 'Biomedical Sciences', yearOfStudy: 'Year 3' },
+  { order: 4, title: 'Deputy Speaker', candidateName: 'Ocepa Ivan', department: 'Computer Science & Engineering', yearOfStudy: 'Year 2' },
+  { order: 5, title: 'General Secretary', candidateName: 'Bua Howard', department: 'Nursing Sciences', yearOfStudy: 'Year 2' },
+  { order: 6, title: 'Deputy General Secretary', candidateName: 'Okello Brahams', department: 'Computer Engineering', yearOfStudy: 'Year 2' },
+  { order: 7, title: 'Treasurer', candidateName: 'Akello Flavia Nancy', department: 'Accounting & Finance', yearOfStudy: 'Year 3' },
+  {
+    order: 8,
+    title: 'Secretary/Treasurer',
+    candidateName: 'Jonathan Sworo Mogga Gonda',
+    department: 'BMLS (Medical Laboratory Science)',
+    yearOfStudy: 'BMLS Student',
+    phoneNumber: '0764792499',
+    slogan: 'Prudence, Accountability & Dedicated Treasury Administration',
+    biography: 'BMLS student contesting for Secretary/Treasurer in the NUSUSA 2026/2027 leadership elections. Dedicated to diligent secretarial management, financial integrity, and prudent treasury oversight.'
+  },
+  { order: 9, title: 'Chief Mobiliser', candidateName: 'Ogaba Francis', department: 'Electrical Engineering', yearOfStudy: 'Year 3' },
+  { order: 10, title: 'Deputy Mobiliser', candidateName: 'Lamwaka Faith Alam', department: 'Nursing Sciences', yearOfStudy: 'Year 2' },
+  { order: 11, title: 'Welfare Director', candidateName: 'Alaroker Prisca', department: 'Nursing Sciences', yearOfStudy: 'Year 3' },
+  { order: 12, title: 'Sec. Publicity', candidateName: 'Obenyo Abraham', department: 'Public Administration', yearOfStudy: 'Year 2' },
+  { order: 13, title: 'Project Manager', candidateName: 'Akona Festus', department: 'Computer Engineering', yearOfStudy: 'Year 4' },
 ];
 
 export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force?: boolean): Promise<void> {
@@ -536,11 +727,12 @@ export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force
       e.title.includes('Northern Uganda Soroti University')
     );
 
-    // If already seeded and not forcing, check if it has the 22 positions
+    // If already seeded and not forcing, check if it has the 13 nominated positions and Jonathan
     if (hasExistingElections && existingNUSUSA && !force) {
-      const positions = await getPositionsByElection(existingNUSUSA.id);
-      if (positions && positions.length >= 20) {
-        return; // Already properly seeded with official 22 positions
+      const candidates = await getCandidatesByElection(existingNUSUSA.id);
+      const hasJonathan = candidates.some(c => c.fullName.toLowerCase().includes('jonathan'));
+      if (hasJonathan && candidates.length >= 13) {
+        return; // Already properly synced
       }
     }
 
@@ -551,7 +743,7 @@ export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force
       return;
     }
 
-    console.log('Seeding official NUSUSA 2026/2027 Election with all 22 positions...');
+    console.log('Seeding official NUSUSA 2026/2027 Election with the 13 nominated candidates and pruning vacant positions...');
 
     // 1. Create or use existing official NUSUSA 2026/2027 Election
     let electionId = existingNUSUSA?.id;
@@ -567,7 +759,6 @@ export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force
       });
       electionId = election.id;
     } else {
-      // Update title and description to ensure no legacy text remains
       await updateElection(electionId, {
         title: 'NUSUSA ELECTIONS 2026/2027',
         description: 'Official Leadership Elections for the Northern Uganda Soroti University Students Association (NUSUSA).',
@@ -576,16 +767,40 @@ export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force
       });
     }
 
-    // 2. Fetch existing positions to avoid duplicates
+    // 2. Fetch existing positions and candidates
     const currentPositions = await getPositionsByElection(electionId);
+    const existingCandidates = await getCandidatesByElection(electionId);
+
+    // 3. Remove vacant positions or positions without candidates (e.g. from obsolete 22-position list)
+    const officialTitlesLower = OFFICIAL_NUSUSA_2026_POSITIONS.map(p => p.title.trim().toLowerCase());
+    for (const pos of currentPositions) {
+      const posTitleLower = pos.title.trim().toLowerCase();
+      const isOfficial = officialTitlesLower.includes(posTitleLower) ||
+        posTitleLower.includes('secretary/treasurer') ||
+        posTitleLower.includes('secretary to treasury');
+      const posCands = existingCandidates.filter(c => c.positionId === pos.id);
+
+      // If position is not in official list and has no candidates, prune it
+      if (!isOfficial && posCands.length === 0) {
+        console.log(`Pruning vacant position: ${pos.title}`);
+        await deletePosition(pos.id);
+      }
+    }
+
+    // Refetch positions after pruning
+    const refreshedPositions = await getPositionsByElection(electionId);
     const existingPosMap = new Map<string, Position>();
-    currentPositions.forEach(p => {
+    refreshedPositions.forEach(p => {
       existingPosMap.set(p.title.trim().toLowerCase(), p);
     });
 
-    // 3. Seed all 22 official positions in exact order
+    // 4. Seed all 13 official positions in exact order
     for (const item of OFFICIAL_NUSUSA_2026_POSITIONS) {
       let position = existingPosMap.get(item.title.trim().toLowerCase());
+      if (!position && item.title.includes('Secretary/Treasurer')) {
+        position = existingPosMap.get('secretary to treasury') || existingPosMap.get('secretary to the treasury');
+      }
+
       if (!position) {
         position = await createPosition({
           electionId,
@@ -594,25 +809,32 @@ export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force
           description: `NUSUSA Official Leadership Office #${item.order}: ${item.title}`,
           maxChoices: 1
         });
+      } else if (position.order !== item.order || position.title !== item.title) {
+        await updatePosition(position.id, {
+          order: item.order,
+          title: item.title,
+          description: `NUSUSA Official Leadership Office #${item.order}: ${item.title}`
+        });
       }
 
-      // 4. Seed candidate if listed in official document and not already created
+      // 5. Seed or update candidate
       if (item.candidateName && position) {
-        const existingCandidates = await getCandidatesByElection(electionId);
-        const alreadyExists = existingCandidates.some(
-          c => c.fullName.trim().toLowerCase() === item.candidateName!.trim().toLowerCase()
+        const matchingCand = existingCandidates.find(
+          c => c.fullName.trim().toLowerCase() === item.candidateName.trim().toLowerCase() ||
+               (item.candidateName.toLowerCase().includes('jonathan') && c.fullName.toLowerCase().includes('jonathan'))
         );
 
-        if (!alreadyExists) {
+        if (!matchingCand) {
           await createCandidate({
             electionId,
             positionId: position.id,
             fullName: item.candidateName,
-            // Per instructions: Do NOT invent photos, manifestos, qualifications, or bios.
-            // These will be filled by the admin or candidate via the Admin Dashboard.
+            department: item.department || '',
+            yearOfStudy: item.yearOfStudy || '',
+            phoneNumber: item.phoneNumber || '',
             photoUrl: '',
-            slogan: '',
-            biography: '',
+            slogan: item.slogan || '',
+            biography: item.biography || '',
             qualifications: '',
             experience: '',
             vision: '',
@@ -620,12 +842,263 @@ export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force
             objectives: '',
             manifesto: ''
           });
+        } else {
+          // Update candidate details if needed
+          const updates: Partial<Candidate> = {};
+          if (item.phoneNumber && (!matchingCand.phoneNumber || matchingCand.phoneNumber !== item.phoneNumber)) {
+            updates.phoneNumber = item.phoneNumber;
+          }
+          if (item.department && (!matchingCand.department || matchingCand.department !== item.department)) {
+            updates.department = item.department;
+          }
+          if (item.yearOfStudy && (!matchingCand.yearOfStudy || matchingCand.yearOfStudy !== item.yearOfStudy)) {
+            updates.yearOfStudy = item.yearOfStudy;
+          }
+          if (item.slogan && (!matchingCand.slogan || matchingCand.slogan !== item.slogan)) {
+            updates.slogan = item.slogan;
+          }
+          if (item.biography && (!matchingCand.biography || matchingCand.biography !== item.biography)) {
+            updates.biography = item.biography;
+          }
+          if (matchingCand.positionId !== position.id) {
+            updates.positionId = position.id;
+          }
+          if (Object.keys(updates).length > 0) {
+            await updateCandidate(matchingCand.id, updates);
+          }
         }
       }
     }
 
-    console.log('Official NUSUSA 2026/2027 election seeded successfully with 22 positions!');
+    console.log('Official NUSUSA 2026/2027 election seeded successfully with 13 nominated candidates!');
   } catch (error) {
     console.warn('Seeding note:', error);
   }
 }
+
+// --- HOURLY TURNOUT ANALYTICS ---
+
+export interface HourlyTurnoutPoint {
+  hourLabel: string;
+  votesCount: number;
+  cumulativeVotes: number;
+  turnoutRate: number; // percentage of approved voters
+}
+
+export async function getHourlyTurnoutData(
+  electionId: string,
+  totalApprovedVoters: number = 0
+): Promise<HourlyTurnoutPoint[]> {
+  try {
+    const ballotsQuery = query(
+      collection(db, 'ballots'),
+      where('electionId', '==', electionId)
+    );
+    const snapshot = await getDocs(ballotsQuery);
+    const ballots = snapshot.docs.map(d => d.data() as Ballot);
+
+    // Standard university polling window: 08:00 to 18:00
+    const standardHours = [
+      '08:00', '09:00', '10:00', '11:00', '12:00',
+      '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'
+    ];
+
+    const hourlyCounts: Record<string, number> = {};
+    standardHours.forEach(h => {
+      hourlyCounts[h] = 0;
+    });
+
+    ballots.forEach(b => {
+      if (b.submittedAt) {
+        const date = new Date(b.submittedAt);
+        const hour = date.getHours().toString().padStart(2, '0') + ':00';
+        if (hourlyCounts[hour] !== undefined) {
+          hourlyCounts[hour] += 1;
+        } else {
+          hourlyCounts[hour] = (hourlyCounts[hour] || 0) + 1;
+        }
+      }
+    });
+
+    const sortedHours = Object.keys(hourlyCounts).sort();
+    let cumulative = 0;
+    const baseDenom = totalApprovedVoters > 0 ? totalApprovedVoters : Math.max(ballots.length, 1);
+
+    return sortedHours.map(hourLabel => {
+      const votes = hourlyCounts[hourLabel] || 0;
+      cumulative += votes;
+      const rate = Math.round((cumulative / baseDenom) * 1000) / 10;
+      return {
+        hourLabel,
+        votesCount: votes,
+        cumulativeVotes: cumulative,
+        turnoutRate: rate
+      };
+    });
+  } catch (error) {
+    console.error('Failed to calculate hourly turnout:', error);
+    const hours = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+    return hours.map(h => ({
+      hourLabel: h,
+      votesCount: 0,
+      cumulativeVotes: 0,
+      turnoutRate: 0
+    }));
+  }
+}
+
+// --- DAILY TURNOUT & PARTICIPATION TRENDS ---
+
+export interface DailyTurnoutTrendPoint {
+  dateKey: string; // e.g. "2026-09-10"
+  formattedDate: string; // e.g. "Sep 10"
+  dayName: string; // e.g. "Thu"
+  newRegistrations: number;
+  approvedRegistrations: number;
+  cumulativeRegistrations: number;
+  cumulativeApproved: number;
+  dailyVotes: number;
+  cumulativeVotes: number;
+  turnoutRate: number; // percentage (0 - 100)
+}
+
+export async function getDailyTurnoutTrends(
+  electionId?: string,
+  daysCount: number = 14,
+  providedVoters?: UserProfile[]
+): Promise<DailyTurnoutTrendPoint[]> {
+  try {
+    // 1. Fetch voters if not provided
+    let voters = providedVoters;
+    if (!voters || voters.length === 0) {
+      try {
+        voters = await getAllVoters();
+      } catch {
+        voters = [];
+      }
+    }
+
+    // 2. Fetch ballots for the election or all ballots
+    let ballots: Ballot[] = [];
+    try {
+      if (electionId && electionId !== 'all') {
+        const ballotsQuery = query(
+          collection(db, 'ballots'),
+          where('electionId', '==', electionId)
+        );
+        const snapshot = await getDocs(ballotsQuery);
+        ballots = snapshot.docs.map(d => d.data() as Ballot);
+      } else {
+        const snapshot = await getDocs(collection(db, 'ballots'));
+        ballots = snapshot.docs.map(d => d.data() as Ballot);
+      }
+    } catch {
+      ballots = [];
+    }
+
+    // 3. Generate continuous date keys for the requested range (ending at today)
+    const now = new Date();
+    const dateKeys: string[] = [];
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().split('T')[0];
+      dateKeys.push(iso);
+    }
+
+    const startDateKey = dateKeys[0];
+
+    // 4. Group registrations by day and count registrations prior to window
+    let preWindowRegistrations = 0;
+    let preWindowApproved = 0;
+    const dailyRegistrationsMap: Record<string, number> = {};
+    const dailyApprovedMap: Record<string, number> = {};
+
+    dateKeys.forEach(k => {
+      dailyRegistrationsMap[k] = 0;
+      dailyApprovedMap[k] = 0;
+    });
+
+    (voters || []).forEach(v => {
+      const regDate = v.createdAt ? v.createdAt.split('T')[0] : '';
+      if (regDate) {
+        if (regDate < startDateKey) {
+          preWindowRegistrations += 1;
+        } else if (dailyRegistrationsMap[regDate] !== undefined) {
+          dailyRegistrationsMap[regDate] += 1;
+        }
+      }
+
+      if (v.status === 'approved') {
+        const appDate = v.approvedAt ? v.approvedAt.split('T')[0] : regDate;
+        if (appDate) {
+          if (appDate < startDateKey) {
+            preWindowApproved += 1;
+          } else if (dailyApprovedMap[appDate] !== undefined) {
+            dailyApprovedMap[appDate] += 1;
+          }
+        }
+      }
+    });
+
+    // 5. Group ballots by day and count ballots prior to window
+    let preWindowVotes = 0;
+    const dailyVotesMap: Record<string, number> = {};
+    dateKeys.forEach(k => {
+      dailyVotesMap[k] = 0;
+    });
+
+    ballots.forEach(b => {
+      const voteDate = b.submittedAt ? b.submittedAt.split('T')[0] : '';
+      if (voteDate) {
+        if (voteDate < startDateKey) {
+          preWindowVotes += 1;
+        } else if (dailyVotesMap[voteDate] !== undefined) {
+          dailyVotesMap[voteDate] += 1;
+        }
+      }
+    });
+
+    // 6. Build the continuous timeline with cumulative sums
+    let cumReg = preWindowRegistrations;
+    let cumApp = preWindowApproved;
+    let cumVotes = preWindowVotes;
+
+    const points: DailyTurnoutTrendPoint[] = dateKeys.map(dateKey => {
+      const newReg = dailyRegistrationsMap[dateKey] || 0;
+      const newApp = dailyApprovedMap[dateKey] || 0;
+      const votesToday = dailyVotesMap[dateKey] || 0;
+
+      cumReg += newReg;
+      cumApp += newApp;
+      cumVotes += votesToday;
+
+      // Calculate turnout rate against approved voters
+      const baseApproved = Math.max(cumApp, 1);
+      const rate = cumApp > 0 ? Math.min(100, Math.round((cumVotes / baseApproved) * 1000) / 10) : 0;
+
+      const dateObj = new Date(`${dateKey}T12:00:00Z`);
+      const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+
+      return {
+        dateKey,
+        formattedDate,
+        dayName,
+        newRegistrations: newReg,
+        approvedRegistrations: newApp,
+        cumulativeRegistrations: cumReg,
+        cumulativeApproved: cumApp,
+        dailyVotes: votesToday,
+        cumulativeVotes: cumVotes,
+        turnoutRate: rate
+      };
+    });
+
+    return points;
+  } catch (error) {
+    console.error('Failed to get daily turnout trends:', error);
+    return [];
+  }
+}
+

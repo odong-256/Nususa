@@ -155,19 +155,19 @@ export const AdminElections: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#102a43] tracking-tight">
             Elections Management
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Configure electoral cycles, start/stop polling windows, and adjust statuses.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={async () => {
@@ -183,10 +183,10 @@ export const AdminElections: React.FC = () => {
                 setLoading(false);
               }
             }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-[#102a43] font-semibold rounded-md text-xs border border-slate-300 shadow-xs transition-all cursor-pointer"
             title="Populate/Update Official NUSUSA 22-position election"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-3.5 h-3.5 text-[#102a43]" />
             <span>Sync Official 22 Offices</span>
           </button>
 
@@ -194,9 +194,9 @@ export const AdminElections: React.FC = () => {
             id="create-election-btn"
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#102a43] hover:bg-[#243b53] text-white font-semibold rounded-md text-xs shadow-xs transition-all cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Create Election</span>
           </button>
         </div>
@@ -204,21 +204,21 @@ export const AdminElections: React.FC = () => {
 
       {/* Elections List */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-500 text-xs">
+        <div className="bg-white p-12 text-center rounded-lg border border-slate-200 text-slate-500 text-xs">
           Loading elections...
         </div>
       ) : elections.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-500 space-y-4">
-          <Calendar className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="font-bold text-slate-900 text-base">No Elections Found</h3>
+        <div className="bg-white p-12 text-center rounded-lg border border-slate-200 text-slate-500 space-y-4">
+          <Calendar className="w-10 h-10 text-slate-400 mx-auto" />
+          <h3 className="font-bold text-[#102a43] text-base">No Elections Found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Get started by creating your first student union election or populate standard university elections.
           </p>
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
             <button
               type="button"
               onClick={openCreateModal}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl text-xs shadow-xs"
+              className="px-3.5 py-2 bg-[#102a43] hover:bg-[#243b53] text-white font-semibold rounded-md text-xs shadow-xs"
             >
               Create New Election
             </button>
@@ -235,59 +235,59 @@ export const AdminElections: React.FC = () => {
                   setLoading(false);
                 }
               }}
-              className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold rounded-xl text-xs shadow-xs"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-[#102a43] font-semibold rounded-md text-xs border border-slate-300 shadow-xs"
             >
               Load Sample 2026/2027 Election
             </button>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-5">
           {elections.map(elec => (
             <div
               key={elec.id}
-              className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 hover:border-slate-300 transition-colors"
+              className="bg-white rounded-lg p-5 sm:p-6 border border-slate-200 border-t-2 border-t-[#102a43] shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 hover:border-slate-300 transition-colors"
             >
-              <div className="space-y-3 flex-1">
-                <div className="flex flex-wrap items-center gap-3">
+              <div className="space-y-2.5 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={elec.status} size="md" />
-                  <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                  <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                     AY {elec.academicYear}
                   </span>
-                  <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
+                  <span className="text-xs font-semibold text-[#102a43] bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                     {elec.totalVotesCount || 0} Total Ballots
                   </span>
                 </div>
 
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                <h2 className="text-lg sm:text-xl font-bold text-[#102a43] tracking-tight">
                   {elec.title}
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-3xl">
+                <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
                   {elec.description}
                 </p>
 
-                <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                <div className="pt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
                   <span>
-                    <strong>Polling Starts:</strong> {new Date(elec.startDate).toLocaleString()}
+                    <strong className="text-slate-700">Polling Starts:</strong> {new Date(elec.startDate).toLocaleString()}
                   </span>
                   <span>•</span>
                   <span>
-                    <strong>Polling Closes:</strong> {new Date(elec.endDate).toLocaleString()}
+                    <strong className="text-slate-700">Polling Closes:</strong> {new Date(elec.endDate).toLocaleString()}
                   </span>
                 </div>
               </div>
 
               {/* Status & Lifecycle Actions */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full lg:w-auto pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full lg:w-auto pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100">
                 {elec.status !== 'open' && (
                   <button
                     id={`start-election-${elec.id}`}
                     type="button"
                     onClick={() => handleStatusChange(elec, 'open')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     title="Start Election (Open Polling)"
                   >
-                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <Play className="w-3 h-3 fill-white" />
                     <span>Start Polling</span>
                   </button>
                 )}
@@ -297,10 +297,10 @@ export const AdminElections: React.FC = () => {
                     id={`end-election-${elec.id}`}
                     type="button"
                     onClick={() => handleStatusChange(elec, 'closed')}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     title="End Election (Close Polling)"
                   >
-                    <Square className="w-3.5 h-3.5 fill-white" />
+                    <Square className="w-3 h-3 fill-white" />
                     <span>End Election</span>
                   </button>
                 )}
@@ -309,10 +309,10 @@ export const AdminElections: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleStatusChange(elec, 'archived')}
-                    className="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     title="Archive Election"
                   >
-                    <Archive className="w-3.5 h-3.5" />
+                    <Archive className="w-3 h-3" />
                     <span>Archive</span>
                   </button>
                 )}
@@ -320,19 +320,19 @@ export const AdminElections: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => openEditModal(elec)}
-                  className="px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
+                  <Edit2 className="w-3 h-3" />
                   <span>Edit</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleDelete(elec)}
-                  className="p-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                  className="p-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                   title="Delete Election"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -350,7 +350,7 @@ export const AdminElections: React.FC = () => {
       >
         <form onSubmit={handleSave} className="space-y-4">
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
@@ -366,7 +366,7 @@ export const AdminElections: React.FC = () => {
               placeholder="e.g. NUSUSA General Guild & Faculty Elections"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
             />
           </div>
 
@@ -381,7 +381,7 @@ export const AdminElections: React.FC = () => {
                 placeholder="2026/2027"
                 value={academicYear}
                 onChange={e => setAcademicYear(e.target.value)}
-                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+                className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
               />
             </div>
 
@@ -392,7 +392,7 @@ export const AdminElections: React.FC = () => {
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value as ElectionStatus)}
-                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white cursor-pointer"
+                className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white cursor-pointer"
               >
                 <option value="draft">Draft (Planning)</option>
                 <option value="scheduled">Scheduled</option>
@@ -413,7 +413,7 @@ export const AdminElections: React.FC = () => {
               placeholder="Official details regarding voting eligibility and contest scopes..."
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
             />
           </div>
 
@@ -427,7 +427,7 @@ export const AdminElections: React.FC = () => {
                 required
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+                className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
               />
             </div>
 
@@ -440,16 +440,16 @@ export const AdminElections: React.FC = () => {
                 required
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+                className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="px-5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              className="px-4 py-2 border border-slate-300 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
             >
               Cancel
             </button>
@@ -457,7 +457,7 @@ export const AdminElections: React.FC = () => {
               id="save-election-submit-btn"
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2 bg-[#102a43] hover:bg-[#243b53] text-white rounded-md text-xs font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {saving ? 'Saving...' : editingElection ? 'Update Election' : 'Create Election'}
             </button>

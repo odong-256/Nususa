@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Vote, Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Vote, Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, ShieldAlert, Copy, ExternalLink } from 'lucide-react';
+import firebaseConfig from '../../../firebase-applet-config.json';
 
 export const Register: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -11,9 +12,20 @@ export const Register: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [operationNotAllowed, setOperationNotAllowed] = useState(false);
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
   const [loading, setLoading] = useState(false);
   const { registerWithEmail, registerWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const currentHostname = window.location.hostname;
+  const consoleAuthSettingsUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`;
+
+  const copyCurrentDomain = () => {
+    navigator.clipboard.writeText(currentHostname);
+    setCopiedDomain(true);
+    setTimeout(() => setCopiedDomain(false), 3000);
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +76,7 @@ export const Register: React.FC = () => {
   const handleGoogleRegister = async () => {
     setError(null);
     setOperationNotAllowed(false);
+    setUnauthorizedDomain(false);
     setLoading(true);
     try {
       await registerWithGoogle({
@@ -73,7 +86,12 @@ export const Register: React.FC = () => {
       navigate('/auth/pending-approval');
     } catch (err: any) {
       console.warn('Google registration notice:', err.message || err);
-      setError(err.message || 'Google registration failed.');
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
+        setUnauthorizedDomain(true);
+        setError('Firebase: Error (auth/unauthorized-domain). This domain must be added to Authorized Domains in Firebase Console.');
+      } else {
+        setError(err.message || 'Google registration failed.');
+      }
     } finally {
       setLoading(false);
     }
@@ -81,43 +99,44 @@ export const Register: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-2">
         <Link to="/" className="inline-flex items-center gap-3 group">
-          <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-md border border-emerald-600/30 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <img
-              src="/nususa-logo.jpg"
-              alt="NUSUSA Logo"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-contain rounded-xl"
-            />
-          </div>
+          <img
+            src="/nususa-logo.jpg"
+            alt="NUSUSA Logo"
+            referrerPolicy="no-referrer"
+            className="w-14 h-14 object-contain rounded-lg border border-slate-200 bg-white p-0.5 shadow-xs"
+          />
         </Link>
-        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Voter Registration
+        <h2 className="text-xs font-bold tracking-widest text-slate-500 uppercase">
+          Northern Uganda Soroti University Students Association
         </h2>
-        <p className="text-xs sm:text-sm text-slate-500">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#102a43] tracking-tight">
+          Voter Registration
+        </h1>
+        <p className="text-xs text-slate-500">
           Create your verified NUSUSA voting account with your student email
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg px-4 sm:px-0">
-        <div className="bg-white py-8 px-6 sm:px-10 shadow-xl rounded-2xl border border-slate-200 space-y-6">
+        <div className="bg-white py-8 px-6 sm:px-10 shadow-xs rounded-lg border border-slate-200 border-t-4 border-t-[#102a43] space-y-6">
           {/* Institutional Note */}
-          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-900">
-            <ShieldAlert className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-md bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-xs text-slate-700">
+            <ShieldAlert className="w-4 h-4 text-[#102a43] shrink-0 mt-0.5" />
             <span>
-              <strong>Institutional Domain Requirement:</strong> You must use your assigned university email ending in <code className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-mono font-bold">@sun.ac.ug</code>.
+              <strong>Institutional Domain Requirement:</strong> You must use your assigned university email ending in <code className="bg-slate-200 text-[#102a43] px-1 py-0.5 rounded font-mono font-bold">@sun.ac.ug</code>.
             </span>
           </div>
 
           {/* Primary Recommended: Register with Google */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <button
               id="google-register-btn"
               type="button"
               onClick={handleGoogleRegister}
               disabled={loading}
-              className="w-full py-3 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-semibold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-3 transition-colors cursor-pointer shadow-xs"
+              className="w-full py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-[#102a43] font-semibold rounded-md text-xs sm:text-sm flex items-center justify-center gap-3 transition-colors cursor-pointer shadow-xs"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -152,9 +171,64 @@ export const Register: React.FC = () => {
             <div className="grow border-t border-slate-200"></div>
           </div>
 
+          {/* Unauthorized Domain Diagnostic Card */}
+          {unauthorizedDomain && (
+            <div className="p-4 rounded-md bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 shrink-0 text-amber-700 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-amber-950 text-sm">Authorized Domain Configuration Required</p>
+                  <p className="text-amber-900 leading-relaxed">
+                    Firebase Authentication rejected Google OAuth popup because this preview hostname is not yet in your Firebase project&apos;s <strong>Authorized Domains</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-white border border-amber-200 rounded-md space-y-2">
+                <p className="font-semibold text-slate-700 text-[11px] uppercase tracking-wider">
+                  Hostname to authorize:
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-2.5 py-1.5 bg-slate-100 text-slate-800 font-mono text-xs rounded border border-slate-200 select-all break-all">
+                    {currentHostname}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyCurrentDomain}
+                    className="px-2.5 py-1.5 bg-[#102a43] hover:bg-[#243b53] text-white text-xs font-semibold rounded flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{copiedDomain ? 'Copied!' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-amber-900 text-[11px] pt-1 border-t border-amber-200">
+                <p className="font-bold text-amber-950">How to fix in 1 minute:</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-700">
+                  <li>
+                    Open{' '}
+                    <a
+                      href={consoleAuthSettingsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#102a43] font-bold underline inline-flex items-center gap-1"
+                    >
+                      <span>Firebase Console Settings</span>
+                      <ExternalLink className="w-3 h-3 inline" />
+                    </a>
+                  </li>
+                  <li>Under <strong>Authorized domains</strong>, click <strong>Add domain</strong></li>
+                  <li>Paste the hostname copied above and click <strong>Save</strong></li>
+                  <li>Return here and click <strong>Register with Google</strong></li>
+                </ol>
+              </div>
+            </div>
+          )}
+
           {/* Operation Not Allowed Notice */}
           {operationNotAllowed && (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm space-y-3">
+            <div className="p-3.5 rounded-md bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm space-y-3">
               <div className="flex items-start gap-2.5">
                 <AlertCircle className="w-5 h-5 shrink-0 text-amber-700 mt-0.5" />
                 <div>
@@ -169,7 +243,7 @@ export const Register: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleGoogleRegister}
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg transition-colors cursor-pointer shadow-xs inline-flex items-center gap-2"
+                  className="px-3.5 py-2 bg-[#102a43] hover:bg-[#243b53] text-white font-semibold text-xs rounded-md transition-colors cursor-pointer shadow-xs inline-flex items-center gap-2"
                 >
                   <span>Continue with Google Sign-Up</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -191,8 +265,8 @@ export const Register: React.FC = () => {
           )}
 
           {error && !operationNotAllowed && (
-            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 mt-0.5" />
+            <div className="p-3.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
               <div>
                 <p className="font-semibold">Registration Issue</p>
                 <p className="mt-0.5">{error}</p>
@@ -206,7 +280,7 @@ export const Register: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Full Legal Name (as on University Records)
               </label>
-              <div className="relative rounded-xl shadow-xs">
+              <div className="relative rounded-md shadow-xs">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <User className="w-4 h-4" />
                 </div>
@@ -217,7 +291,7 @@ export const Register: React.FC = () => {
                   placeholder="e.g. Namusoke Brenda"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden transition-all bg-white"
+                  className="block w-full pl-10 pr-4 py-2 sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden transition-all bg-white"
                 />
               </div>
             </div>
@@ -227,7 +301,7 @@ export const Register: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Student Email (@sun.ac.ug)
               </label>
-              <div className="relative rounded-xl shadow-xs">
+              <div className="relative rounded-md shadow-xs">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <Mail className="w-4 h-4" />
                 </div>
@@ -238,11 +312,11 @@ export const Register: React.FC = () => {
                   placeholder="e.g. 2301600199@sun.ac.ug"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden transition-all bg-white"
+                  className="block w-full pl-10 pr-4 py-2 sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden transition-all bg-white"
                 />
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
-                Any valid username preceding <code className="text-emerald-700 font-mono font-bold">@sun.ac.ug</code> is accepted.
+                Any valid username preceding <code className="text-[#102a43] font-mono font-bold">@sun.ac.ug</code> is accepted.
               </p>
             </div>
 
@@ -257,7 +331,7 @@ export const Register: React.FC = () => {
                 placeholder="e.g. 23/U/14295/PS"
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
-                className="block w-full px-4 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden transition-all bg-white"
+                className="block w-full px-3 py-2 sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden transition-all bg-white"
               />
             </div>
 
@@ -267,7 +341,7 @@ export const Register: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Password
                 </label>
-                <div className="relative rounded-xl shadow-xs">
+                <div className="relative rounded-md shadow-xs">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock className="w-4 h-4" />
                   </div>
@@ -278,7 +352,7 @@ export const Register: React.FC = () => {
                     placeholder="Min 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden transition-all bg-white"
+                    className="block w-full pl-10 pr-4 py-2 sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden transition-all bg-white"
                   />
                 </div>
               </div>
@@ -287,7 +361,7 @@ export const Register: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Confirm Password
                 </label>
-                <div className="relative rounded-xl shadow-xs">
+                <div className="relative rounded-md shadow-xs">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock className="w-4 h-4" />
                   </div>
@@ -298,15 +372,15 @@ export const Register: React.FC = () => {
                     placeholder="Re-type password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden transition-all bg-white"
+                    className="block w-full pl-10 pr-4 py-2 sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden transition-all bg-white"
                   />
                 </div>
               </div>
             </div>
 
             {/* Pending Notice Reminder */}
-            <div className="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-[11px] text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
               <span>
                 <strong>Approval Policy:</strong> After registration, your status will be <em>Pending Approval</em>. An Electoral Commission administrator will review your enrollment before voting permissions are granted.
               </span>
@@ -317,7 +391,7 @@ export const Register: React.FC = () => {
               id="register-submit-btn"
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm disabled:opacity-50 mt-2"
+              className="w-full py-2.5 px-4 bg-[#102a43] hover:bg-[#243b53] text-white font-semibold rounded-md shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer text-sm disabled:opacity-50 mt-2"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -334,7 +408,7 @@ export const Register: React.FC = () => {
           <div className="pt-4 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-500">
               Already registered?{' '}
-              <Link to="/auth/login" className="font-bold text-emerald-700 hover:text-emerald-800">
+              <Link to="/auth/login" className="font-semibold text-[#102a43] hover:underline">
                 Log into Your Account
               </Link>
             </p>

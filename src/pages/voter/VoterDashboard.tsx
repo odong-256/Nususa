@@ -2,9 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllElections, checkHasVoted } from '../../services/electionService';
+import { getAllVoters } from '../../services/voterService';
 import { Election } from '../../types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ElectionCountdown } from '../../components/ElectionCountdown';
+import { HowToVoteModal } from '../../components/voter/HowToVoteModal';
+import { ElectionProgressBar } from '../../components/voter/ElectionProgressBar';
 import {
   Vote,
   Calendar,
@@ -16,33 +19,43 @@ import {
   User,
   ExternalLink,
   Award,
-  BarChart3
+  BarChart3,
+  HelpCircle
 } from 'lucide-react';
 
 export const VoterDashboard: React.FC = () => {
   const { currentUser, userProfile, isApproved, isAdmin } = useAuth();
   const [elections, setElections] = useState<Election[]>([]);
   const [votedStatusMap, setVotedStatusMap] = useState<Record<string, boolean>>({});
+  const [totalEligibleVoters, setTotalEligibleVoters] = useState<number>(0);
+  const [tutorialOpen, setTutorialOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const loadDashboard = async () => {
     if (!currentUser) return;
     try {
-      const allElec = await getAllElections();
+      const [allElec, allVoters] = await Promise.all([
+        getAllElections(),
+        getAllVoters().catch(() => [])
+      ]);
       setElections(allElec || []);
 
-      // Check voting status for each election for this user
-      const statusMap: Record<string, boolean> = {};
-      for (const elec of allElec) {
-        try {
-          const hasVoted = await checkHasVoted(elec.id, currentUser.uid);
-          statusMap[elec.id] = hasVoted;
-        } catch {
-          statusMap[elec.id] = false;
-        }
-      }
-      setVotedStatusMap(statusMap);
+      const approvedCount = (allVoters || []).filter(v => v.status === 'approved').length;
+      setTotalEligibleVoters(approvedCount > 0 ? approvedCount : (allVoters || []).length);
+
+      // Check voting status for each election for this user in parallel
+      const statusPairs = await Promise.all(
+        (allElec || []).map(async elec => {
+          try {
+            const hasVoted = await checkHasVoted(elec.id, currentUser.uid);
+            return [elec.id, hasVoted] as const;
+          } catch {
+            return [elec.id, false] as const;
+          }
+        })
+      );
+      setVotedStatusMap(Object.fromEntries(statusPairs));
     } catch (err) {
       console.error('Error fetching elections:', err);
     } finally {
@@ -84,44 +97,52 @@ export const VoterDashboard: React.FC = () => {
   const featuredActiveElection = activeElections[0];
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Welcome Header */}
-        <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white p-1 shadow-md border border-emerald-400/40 shrink-0 hidden sm:flex items-center justify-center">
-              <img
-                src="/nususa-logo.jpg"
-                alt="NUSUSA Logo"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-contain rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-mono text-emerald-300">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Verified Voter Session • 2026/2027</span>
+    <div className="min-h-screen bg-slate-50 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        {/* Welcome Header - SUES Style */}
+        <div className="bg-white rounded-lg border border-slate-200 border-t-4 border-t-[#102a43] p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <img
+              src="/nususa-logo.jpg"
+              alt="NUSUSA Logo"
+              referrerPolicy="no-referrer"
+              className="w-14 h-14 rounded-md object-contain bg-white border border-slate-200 p-1 shrink-0 hidden sm:block"
+            />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#102a43]" />
+                <span>NUSUSA Elections • Voter Ballot Portal</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                Welcome, {userProfile?.fullName || 'Voter'}!
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#102a43] tracking-tight">
+                Welcome, {userProfile?.fullName || 'Voter'}
               </h1>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-                Student ID: <span className="font-semibold text-white">{userProfile?.studentId || 'N/A'}</span> • Institutional Email: <span className="font-semibold text-white">{currentUser?.email}</span>
+              <p className="text-xs text-slate-600">
+                Student ID: <span className="font-semibold text-slate-900">{userProfile?.studentId || 'N/A'}</span> • Email: <span className="font-semibold text-slate-900">{currentUser?.email}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/10 p-4 rounded-2xl backdrop-blur-md border border-white/15">
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase tracking-wider text-slate-300 block">Approval Status</span>
-              {userProfile?.status && <StatusBadge status={userProfile.status} size="md" />}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Status:</span>
+              {userProfile?.status && <StatusBadge status={userProfile.status} size="sm" />}
             </div>
+            
+            <button
+              type="button"
+              onClick={() => setTutorialOpen(true)}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-md border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
+              <span>How to Vote</span>
+            </button>
+
             {isAdmin && (
               <Link
                 to="/admin"
-                className="mt-2 sm:mt-0 px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-[#102a43] hover:bg-[#243b53] text-white text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5"
               >
-                <span>Admin Console</span>
+                <span>Administration</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             )}
@@ -135,6 +156,15 @@ export const VoterDashboard: React.FC = () => {
             variant="banner"
             hasVoted={votedStatusMap[featuredActiveElection.id] || false}
             onTimerExpired={loadDashboard}
+          />
+        )}
+
+        {/* Dynamic Election Completion & Participation Progress Bar */}
+        {!loading && featuredActiveElection && (
+          <ElectionProgressBar
+            election={featuredActiveElection}
+            totalEligibleVoters={totalEligibleVoters}
+            hasVoted={votedStatusMap[featuredActiveElection.id] || false}
           />
         )}
 
@@ -236,10 +266,10 @@ export const VoterDashboard: React.FC = () => {
                         <Link
                           id={`vote-now-${election.id}`}
                           to={`/voter/election/${election.id}`}
-                          className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-center shadow-md transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
+                          className="w-full py-2.5 px-4 bg-[#102a43] hover:bg-[#243b53] text-white font-semibold rounded-md text-center shadow-xs transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
                         >
                           <Vote className="w-4 h-4" />
-                          <span>Vote Now</span>
+                          <span>Cast Ballot</span>
                           <ArrowRight className="w-4 h-4" />
                         </Link>
                       )}
@@ -318,6 +348,17 @@ export const VoterDashboard: React.FC = () => {
           </section>
         )}
       </div>
+
+      {/* 'How to Vote' Step-by-Step Tutorial Modal */}
+      <HowToVoteModal
+        isOpen={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        onStartVoting={() => {
+          if (featuredActiveElection) {
+            navigate(`/voter/election/${featuredActiveElection.id}`);
+          }
+        }}
+      />
     </div>
   );
 };

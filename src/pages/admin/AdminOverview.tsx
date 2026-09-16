@@ -7,6 +7,8 @@ import { getRecentAuditLogs } from '../../services/auditService';
 import { Election, VoterProfile, AuditLog, Candidate } from '../../types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { downloadResultsCsv } from '../../utils/exportResultsCsv';
+import { HourlyTurnoutChart } from '../../components/admin/HourlyTurnoutChart';
+import { VoterTurnoutLineChart } from '../../components/admin/VoterTurnoutLineChart';
 import {
   Users,
   UserCheck,
@@ -142,15 +144,15 @@ export const AdminOverview: React.FC = () => {
         </div>
       )}
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* KPI Cards Grid - SUES Institutional Accent */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Registered Voters */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 border-t-4 border-t-[#102a43] shadow-xs space-y-2">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Registered</span>
-            <Users className="w-5 h-5 text-blue-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Registered</span>
+            <Users className="w-5 h-5 text-[#102a43]" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900">
+          <div className="text-2xl sm:text-3xl font-bold text-[#102a43]">
             {voters.length}
           </div>
           <p className="text-xs text-slate-500">
@@ -159,12 +161,12 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Card 2: Approved Voters */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 border-t-4 border-t-[#102a43] shadow-xs space-y-2">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Approved Voters</span>
-            <UserCheck className="w-5 h-5 text-emerald-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Approved Voters</span>
+            <UserCheck className="w-5 h-5 text-emerald-600" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-600">
+          <div className="text-2xl sm:text-3xl font-bold text-emerald-700">
             {approvedVoters.length}
           </div>
           <p className="text-xs text-slate-500">
@@ -173,12 +175,12 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Card 3: Active Elections */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 border-t-4 border-t-[#102a43] shadow-xs space-y-2">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Active Polling</span>
-            <Calendar className="w-5 h-5 text-amber-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Polling</span>
+            <Calendar className="w-5 h-5 text-amber-600" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900">
+          <div className="text-2xl sm:text-3xl font-bold text-[#102a43]">
             {activeElections.length}
           </div>
           <p className="text-xs text-slate-500">
@@ -187,12 +189,12 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Card 4: Total Ballots Cast */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 border-t-4 border-t-[#102a43] shadow-xs space-y-2">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Ballots Cast</span>
-            <Vote className="w-5 h-5 text-purple-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ballots Cast</span>
+            <Vote className="w-5 h-5 text-[#102a43]" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-purple-700">
+          <div className="text-2xl sm:text-3xl font-bold text-[#102a43]">
             {totalVotesCast}
           </div>
           <p className="text-xs text-slate-500">
@@ -201,18 +203,30 @@ export const AdminOverview: React.FC = () => {
         </div>
       </div>
 
+      {/* Voter Turnout Daily Trends Line Chart (Recharts) */}
+      <VoterTurnoutLineChart
+        elections={elections}
+        voters={voters}
+      />
+
+      {/* Hourly Voter Turnout Summary Chart (Recharts) */}
+      <HourlyTurnoutChart
+        elections={elections}
+        totalApprovedVoters={approvedVoters.length}
+      />
+
       {/* Main Section: Elections Snapshot & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Active Elections list */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-4">
+        <div className="lg:col-span-2 bg-white rounded-lg p-6 border border-slate-200 border-t-4 border-t-[#102a43] shadow-xs space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-700" />
+            <h2 className="text-base font-bold text-[#102a43] tracking-tight flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-[#102a43]" />
               <span>Electoral Cycles</span>
             </h2>
             <Link
               to="/admin/elections"
-              className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 flex items-center gap-1"
+              className="text-xs font-semibold text-[#102a43] hover:underline flex items-center gap-1"
             >
               <span>Manage All</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -224,11 +238,11 @@ export const AdminOverview: React.FC = () => {
               No elections found. Create your first election.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {elections.map(election => (
                 <div
                   key={election.id}
-                  className="p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-3.5 rounded-md border border-slate-200 hover:border-slate-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -237,7 +251,7 @@ export const AdminOverview: React.FC = () => {
                         AY {election.academicYear}
                       </span>
                     </div>
-                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                    <h3 className="font-bold text-slate-900 text-sm">
                       {election.title}
                     </h3>
                     <p className="text-xs text-slate-500">
@@ -251,22 +265,22 @@ export const AdminOverview: React.FC = () => {
                       type="button"
                       onClick={() => handleDownloadElectionResults(election.id)}
                       disabled={downloadingId === election.id}
-                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-95 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 disabled:opacity-50 text-slate-800 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
                       title="Download Audited Results CSV for Record-Keeping"
                     >
                       <Download className={`w-3.5 h-3.5 ${downloadingId === election.id ? 'animate-bounce' : ''}`} />
-                      <span>{downloadingId === election.id ? 'Exporting...' : 'Download Results'}</span>
+                      <span>{downloadingId === election.id ? 'Exporting...' : 'Export CSV'}</span>
                     </button>
                     <Link
                       to={`/admin/results?electionId=${election.id}`}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 bg-[#102a43] hover:bg-[#243b53] text-white text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5"
                     >
                       <BarChart3 className="w-3.5 h-3.5" />
-                      <span>Live Tallies</span>
+                      <span>Tallies</span>
                     </Link>
                     <Link
                       to="/admin/elections"
-                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-lg transition-colors"
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-md transition-colors"
                     >
                       Configure
                     </Link>
@@ -277,18 +291,18 @@ export const AdminOverview: React.FC = () => {
           )}
         </div>
 
-        {/* Quick Operations panel */}
-        <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-sm space-y-6 flex flex-col justify-between">
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-amber-400" />
+        {/* Quick Operations panel - SUES Light Institutional Theme */}
+        <div className="bg-white rounded-lg p-6 border border-slate-200 border-t-4 border-t-[#102a43] shadow-xs space-y-4 flex flex-col justify-between">
+          <div className="space-y-3">
+            <h3 className="text-base font-bold text-[#102a43] tracking-tight flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#102a43]" />
               <span>Quick Dispatch</span>
             </h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Standard operating procedures for managing the NUSUSA electoral lifecycle.
             </p>
 
-            <div className="space-y-2 pt-2">
+            <div className="space-y-1.5 pt-1">
               <button
                 id="quick-download-results-btn"
                 type="button"
@@ -297,10 +311,10 @@ export const AdminOverview: React.FC = () => {
                   if (target) handleDownloadElectionResults(target.id);
                 }}
                 disabled={!elections.length || Boolean(downloadingId)}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors cursor-pointer text-left disabled:opacity-50"
+                className="w-full flex items-center justify-between p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold transition-colors cursor-pointer text-left disabled:opacity-50 text-slate-800"
               >
-                <div className="flex items-center gap-2.5">
-                  <Download className="w-4 h-4 text-emerald-400" />
+                <div className="flex items-center gap-2">
+                  <Download className="w-4 h-4 text-[#102a43]" />
                   <span>{downloadingId ? 'Exporting Results...' : 'Download Results (CSV)'}</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -308,10 +322,10 @@ export const AdminOverview: React.FC = () => {
 
               <Link
                 to="/admin/voters"
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+                className="w-full flex items-center justify-between p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold transition-colors text-slate-800"
               >
-                <div className="flex items-center gap-2.5">
-                  <UserCheck className="w-4 h-4 text-emerald-400" />
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-[#102a43]" />
                   <span>Audit & Approve Voters</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -319,10 +333,10 @@ export const AdminOverview: React.FC = () => {
 
               <Link
                 to="/admin/candidates"
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+                className="w-full flex items-center justify-between p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold transition-colors text-slate-800"
               >
-                <div className="flex items-center gap-2.5">
-                  <Users className="w-4 h-4 text-amber-400" />
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#102a43]" />
                   <span>Nominate New Candidate</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -330,10 +344,10 @@ export const AdminOverview: React.FC = () => {
 
               <Link
                 to="/admin/results"
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+                className="w-full flex items-center justify-between p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold transition-colors text-slate-800"
               >
-                <div className="flex items-center gap-2.5">
-                  <BarChart3 className="w-4 h-4 text-cyan-400" />
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-[#102a43]" />
                   <span>Certified Result Declaration</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -341,10 +355,10 @@ export const AdminOverview: React.FC = () => {
 
               <Link
                 to="/admin/audit-logs"
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+                className="w-full flex items-center justify-between p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold transition-colors text-slate-800"
               >
-                <div className="flex items-center gap-2.5">
-                  <FileSpreadsheet className="w-4 h-4 text-purple-400" />
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4 text-[#102a43]" />
                   <span>View System Audit Trail</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -352,14 +366,14 @@ export const AdminOverview: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 text-[11px] text-slate-400">
-            <span className="font-semibold text-emerald-400">Security Rule Active:</span> Direct client manipulation of vote tallies or status elevations is strictly blocked.
+          <div className="p-3 bg-slate-100 rounded-md border border-slate-200 text-[11px] text-slate-600 mt-3">
+            <span className="font-semibold text-[#102a43]">Security Active:</span> Direct client manipulation of vote tallies or status elevations is strictly blocked.
           </div>
         </div>
       </div>
 
       {/* Recent Audit Logs Snapshot */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-4">
+      <div className="bg-white rounded-lg p-6 border border-slate-200 border-t-4 border-t-[#102a43] shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">

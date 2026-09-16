@@ -8,6 +8,8 @@ export interface UserProfile {
   email: string;
   studentId: string;
   phoneNumber?: string;
+  course?: string;
+  yearOfStudy?: number;
   department?: string;
   faculty?: string;
   bio?: string;
@@ -56,6 +58,9 @@ export interface Candidate {
   electionId: string;
   positionId: string;
   fullName: string;
+  department?: string;
+  yearOfStudy?: string;
+  phoneNumber?: string;
   photoUrl: string;
   slogan: string;
   biography: string;

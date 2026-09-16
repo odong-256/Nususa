@@ -56,19 +56,19 @@ export const Modal: React.FC<ModalProps> = ({
         id="modal-card"
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${widthClass} bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8`}
+        className={`relative w-full ${widthClass} bg-white rounded-lg shadow-xl border border-slate-200 border-t-4 border-t-[#102a43] overflow-hidden transform transition-all my-8`}
       >
         {(title || onClose) && (
-          <div className="flex items-start justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/70">
+          <div className="flex items-start justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
             <div>
-              {title && <h3 className="text-lg font-semibold text-slate-900 tracking-tight">{title}</h3>}
+              {title && <h3 className="text-base font-bold text-[#102a43] tracking-tight">{title}</h3>}
               {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
             </div>
             <button
               id="modal-close-btn"
               type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 p-1.5 rounded-lg transition-colors cursor-pointer"
+              className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 p-1 rounded-md transition-colors cursor-pointer"
               aria-label="Close dialog"
             >
               <X className="w-5 h-5" />

@@ -140,14 +140,14 @@ export const AdminPositions: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header & Election Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#102a43] tracking-tight">
             Position Management
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Organize elective offices, display ordering, and seats available.
           </p>
         </div>
@@ -156,7 +156,7 @@ export const AdminPositions: React.FC = () => {
           <select
             value={selectedElectionId}
             onChange={e => setSelectedElectionId(e.target.value)}
-            className="px-3 py-2 text-xs sm:text-sm font-semibold border border-slate-300 rounded-xl bg-white shadow-xs focus:ring-2 focus:ring-emerald-600 outline-hidden cursor-pointer"
+            className="px-3 py-2 text-xs sm:text-sm font-semibold border border-slate-300 rounded-md bg-white shadow-xs focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden cursor-pointer"
           >
             {elections.map(e => (
               <option key={e.id} value={e.id}>
@@ -170,7 +170,7 @@ export const AdminPositions: React.FC = () => {
             type="button"
             onClick={openCreateModal}
             disabled={!selectedElectionId}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#102a43] hover:bg-[#243b53] text-white font-semibold rounded-md text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             <span>Add Position</span>
@@ -180,64 +180,64 @@ export const AdminPositions: React.FC = () => {
 
       {/* Positions List */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-500 text-xs">
+        <div className="bg-white p-12 text-center rounded-lg border border-slate-200 text-slate-500 text-xs">
           Loading positions...
         </div>
       ) : positions.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-500 space-y-3">
-          <Layers className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="font-bold text-slate-900 text-base">No Positions Added Yet</h3>
+        <div className="bg-white p-12 text-center rounded-lg border border-slate-200 text-slate-500 space-y-3">
+          <Layers className="w-10 h-10 text-slate-400 mx-auto" />
+          <h3 className="font-bold text-[#102a43] text-base">No Positions Added Yet</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Click "Add Position" to establish the elective posts for this election (e.g. Guild President, Vice President).
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-lg border border-slate-200 border-t-2 border-t-[#102a43] shadow-xs overflow-hidden">
           <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+            <thead className="bg-slate-100 border-b border-slate-200 text-[#102a43] font-bold uppercase tracking-wider text-[11px]">
               <tr>
-                <th className="py-4 px-6 w-20">Order</th>
-                <th className="py-4 px-6">Position Title</th>
-                <th className="py-4 px-6">Scope & Description</th>
-                <th className="py-4 px-6 text-center">Number of Winners</th>
-                <th className="py-4 px-6 text-right">Actions</th>
+                <th className="py-3 px-4 w-20">Order</th>
+                <th className="py-3 px-4">Position Title</th>
+                <th className="py-3 px-4">Scope & Description</th>
+                <th className="py-3 px-4 text-center">Number of Winners</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {positions.map(pos => (
                 <tr key={pos.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-4 px-6">
-                    <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center">
+                  <td className="py-3 px-4">
+                    <span className="w-6 h-6 rounded bg-slate-100 text-[#102a43] font-bold text-xs flex items-center justify-center border border-slate-200">
                       {pos.order}
                     </span>
                   </td>
-                  <td className="py-4 px-6 font-bold text-slate-900">{pos.title}</td>
-                  <td className="py-4 px-6 text-slate-500 max-w-xs truncate">
+                  <td className="py-3 px-4 font-bold text-[#102a43]">{pos.title}</td>
+                  <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
                     {pos.description || 'Standard executive role'}
                   </td>
-                  <td className="py-4 px-6 text-center">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 font-semibold text-slate-700 text-xs">
-                      <Award className="w-3 h-3 text-amber-600" />
+                  <td className="py-3 px-4 text-center">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 font-semibold text-slate-700 text-xs border border-slate-200">
+                      <Award className="w-3 h-3 text-slate-500" />
                       <span>{pos.maxWinners || 1} Seat</span>
                     </span>
                   </td>
-                  <td className="py-4 px-6 text-right">
-                    <div className="inline-flex items-center gap-2">
+                  <td className="py-3 px-4 text-right">
+                    <div className="inline-flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => openEditModal(pos)}
-                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                        className="p-1 text-slate-600 hover:text-[#102a43] hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
                         title="Edit Position"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(pos)}
-                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                         title="Delete Position"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -258,7 +258,7 @@ export const AdminPositions: React.FC = () => {
       >
         <form onSubmit={handleSave} className="space-y-4">
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
@@ -274,7 +274,7 @@ export const AdminPositions: React.FC = () => {
               placeholder="e.g. Guild President"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
             />
           </div>
 
@@ -287,7 +287,7 @@ export const AdminPositions: React.FC = () => {
               placeholder="Brief overview of duties..."
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
             />
           </div>
 
@@ -302,7 +302,7 @@ export const AdminPositions: React.FC = () => {
                 required
                 value={order}
                 onChange={e => setOrder(Number(e.target.value))}
-                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+                className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
               />
             </div>
 
@@ -316,16 +316,16 @@ export const AdminPositions: React.FC = () => {
                 required
                 value={maxWinners}
                 onChange={e => setMaxWinners(Number(e.target.value))}
-                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-hidden bg-white"
+                className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-[#102a43] focus:border-[#102a43] outline-hidden bg-white"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="px-5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              className="px-4 py-2 border border-slate-300 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
             >
               Cancel
             </button>
@@ -333,7 +333,7 @@ export const AdminPositions: React.FC = () => {
               id="save-position-submit-btn"
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2 bg-[#102a43] hover:bg-[#243b53] text-white rounded-md text-xs font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {saving ? 'Saving...' : editingPosition ? 'Update Position' : 'Add Position'}
             </button>

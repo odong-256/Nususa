@@ -5,7 +5,8 @@ import {
   getAllElections,
   getPositionsByElection,
   getCandidatesByElection,
-  getElectionResults
+  getElectionResults,
+  subscribeToElectionLiveUpdates
 } from '../../services/electionService';
 import { Election, Position, Candidate, ResultsSummary } from '../../types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -22,7 +23,11 @@ import {
   Calendar,
   Users,
   FileSpreadsheet,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle,
+  FileText,
+  Radio,
+  Sparkles
 } from 'lucide-react';
 
 export const AdminResults: React.FC = () => {
@@ -38,9 +43,17 @@ export const AdminResults: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const loadData = async (elecId?: string) => {
-    setLoading(true);
+  // Subtle Live synchronization & new vote highlight states
+  const [hasNewVotesHighlight, setHasNewVotesHighlight] = useState(false);
+  const [newVotesDelta, setNewVotesDelta] = useState(0);
+  const [lastLiveUpdateAt, setLastLiveUpdateAt] = useState<string>('');
+  const [isLiveConnected, setIsLiveConnected] = useState(true);
+  const highlightTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const loadData = async (elecId?: string, isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const allElec = await getAllElections();
       setElections(allElec || []);
@@ -56,13 +69,53 @@ export const AdminResults: React.FC = () => {
     } catch (err) {
       console.error('Error fetching results:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Set up real-time listener for incoming votes on the active election
+  useEffect(() => {
+    if (!selectedElectionId) return;
+
+    setIsLiveConnected(true);
+    const unsubscribe = subscribeToElectionLiveUpdates(
+      selectedElectionId,
+      (newTotalVotes, prevTotalVotes) => {
+        const delta = Math.max(1, newTotalVotes - prevTotalVotes);
+        setNewVotesDelta(delta);
+        setHasNewVotesHighlight(true);
+        setLastLiveUpdateAt(
+          new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        );
+
+        // Silently reload tallies without triggering a full-screen loading spinner
+        loadData(selectedElectionId, true);
+
+        // Keep highlight visible for 5 seconds
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current);
+        }
+        highlightTimeoutRef.current = setTimeout(() => {
+          setHasNewVotesHighlight(false);
+        }, 5000);
+      },
+      (err) => {
+        console.warn('Real-time election subscription warning:', err);
+        setIsLiveConnected(false);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, [selectedElectionId]);
 
   const handleElectionChange = (newId: string) => {
     setSelectedElectionId(newId);
@@ -75,6 +128,7 @@ export const AdminResults: React.FC = () => {
   const handleDownloadResults = async () => {
     if (!currentElection) return;
     setDownloading(true);
+    setDownloadError(null);
     try {
       let summary = resultsSummary;
       if (!summary || summary.election.id !== currentElection.id) {
@@ -91,6 +145,7 @@ export const AdminResults: React.FC = () => {
       setTimeout(() => setDownloadSuccess(null), 9000);
     } catch (err: any) {
       console.error('Download results error:', err);
+      setDownloadError(err?.message || 'Failed to export election results CSV. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -105,9 +160,64 @@ export const AdminResults: React.FC = () => {
             <ShieldCheck className="w-4 h-4" />
             <span>Official Certification Ledger</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Certified Election Results & Tallies
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Certified Election Results & Tallies
+            </h1>
+
+            {/* Subtle 'Live' Status Indicator */}
+            <div
+              id="live-status-indicator"
+              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all duration-300 select-none ${
+                hasNewVotesHighlight
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 scale-105 ring-2 ring-emerald-400'
+                  : 'bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100/70'
+              }`}
+              title={
+                hasNewVotesHighlight
+                  ? `New vote recorded just now! Tallies updated automatically in real time.`
+                  : isLiveConnected
+                  ? `Live tally synchronization active. Real-time updates without full page refresh.`
+                  : `Connecting to real-time tally stream...`
+              }
+            >
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                    hasNewVotesHighlight
+                      ? 'bg-white opacity-90'
+                      : isLiveConnected
+                      ? 'bg-emerald-400 opacity-75'
+                      : 'bg-amber-400 opacity-50'
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    hasNewVotesHighlight
+                      ? 'bg-white'
+                      : isLiveConnected
+                      ? 'bg-emerald-600'
+                      : 'bg-amber-500'
+                  }`}
+                />
+              </span>
+              <span className="tracking-wide text-[11px] font-extrabold uppercase flex items-center gap-1.5">
+                {hasNewVotesHighlight ? (
+                  <>
+                    <Sparkles className="w-3 h-3 text-emerald-100 animate-spin" />
+                    <span>+{newVotesDelta} New Vote{newVotesDelta > 1 ? 's' : ''} Received!</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Live</span>
+                    <span className="text-[10px] text-emerald-600/90 font-medium normal-case hidden sm:inline">
+                      • {isLiveConnected ? 'Auto-sync active' : 'Connecting'}
+                    </span>
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Real-time vote aggregation, statistical percentages, and official winner declarations.
           </p>
@@ -130,7 +240,7 @@ export const AdminResults: React.FC = () => {
             type="button"
             onClick={() => loadData(selectedElectionId)}
             className="p-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl transition-colors cursor-pointer"
-            title="Refresh Live Tallies"
+            title="Refresh Live Tallies (Syncing automatically in real time)"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -145,33 +255,62 @@ export const AdminResults: React.FC = () => {
             <Printer className="w-4 h-4" />
           </button>
 
-          {/* Primary Download Results Feature */}
+          {/* Primary Download CSV Button for Official Record-Keeping */}
           <button
-            id="download-results-btn"
+            id="download-csv-btn"
+            data-testid="download-csv-btn"
             type="button"
             onClick={handleDownloadResults}
             disabled={downloading || !currentElection}
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
-            title="Download Audited Results CSV for Record-Keeping"
+            title="Download Audited Election Tallies CSV for Official Record-Keeping"
           >
             <Download className={`w-3.5 h-3.5 ${downloading ? 'animate-bounce' : ''}`} />
-            <span>{downloading ? 'Preparing CSV...' : 'Download Results'}</span>
-          </button>
-
-          {/* Secondary Alias for Export CSV */}
-          <button
-            id="export-results-csv-btn"
-            type="button"
-            onClick={handleDownloadResults}
-            disabled={downloading || !currentElection}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-            title="Export CSV Tally Sheet"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-            <span>CSV File</span>
+            <span>{downloading ? 'Preparing CSV...' : 'Download CSV'}</span>
           </button>
         </div>
       </div>
+
+      {/* Subtle Live Vote Notification Banner */}
+      {hasNewVotesHighlight && (
+        <div
+          id="live-vote-alert-banner"
+          className="p-3.5 bg-gradient-to-r from-emerald-50 via-emerald-100/70 to-teal-50 border border-emerald-300 rounded-2xl flex items-center justify-between text-xs text-emerald-950 shadow-xs animate-in fade-in slide-in-from-top-1 duration-300"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-90"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-700"></span>
+            </span>
+            <span>
+              <strong>Live Update:</strong> {newVotesDelta > 1 ? `${newVotesDelta} new votes have been` : 'A new vote has been'} cast and verified. Candidate standings, vote shares, and turnout updated in real time without refreshing.
+            </span>
+          </div>
+          {lastLiveUpdateAt && (
+            <span className="text-[11px] font-mono font-bold text-emerald-800 shrink-0 ml-3 bg-white/80 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+              {lastLiveUpdateAt}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Download Error Banner */}
+      {downloadError && (
+        <div className="p-4 bg-rose-50 border border-rose-300 rounded-2xl flex items-center justify-between text-xs text-rose-900 shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>
+              <strong>Export Failed:</strong> {downloadError}
+            </span>
+          </div>
+          <button
+            onClick={() => setDownloadError(null)}
+            className="text-rose-700 hover:text-rose-950 font-bold ml-4 text-xs underline cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Download Success Banner */}
       {downloadSuccess && (
@@ -179,7 +318,7 @@ export const AdminResults: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
-              <strong>Results Export Complete:</strong> Exported <code>{downloadSuccess}</code> into an audited CSV spreadsheet. An administrative audit log entry has been registered for record-keeping.
+              <strong>Official CSV Export Complete:</strong> Generated and downloaded <code>{downloadSuccess}</code>. Certified tallies with candidate vote shares, departments, year of study, and EC audit credentials have been archived and logged for record-keeping.
             </span>
           </div>
           <button
@@ -210,11 +349,28 @@ export const AdminResults: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 divide-x divide-slate-100">
-            <div className="text-center px-4">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                Total Ballots Recorded
-              </span>
-              <span className="text-2xl sm:text-3xl font-black text-emerald-600">
+            <div
+              className={`text-center px-4 transition-all duration-500 rounded-2xl py-1 ${
+                hasNewVotesHighlight
+                  ? 'bg-emerald-50 ring-2 ring-emerald-500 shadow-xs scale-105'
+                  : ''
+              }`}
+            >
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  Total Ballots Recorded
+                </span>
+                {hasNewVotesHighlight && (
+                  <span className="text-[10px] font-black text-emerald-800 bg-emerald-200/90 px-1.5 py-0.2 rounded-full animate-bounce">
+                    +{newVotesDelta}
+                  </span>
+                )}
+              </div>
+              <span
+                className={`text-2xl sm:text-3xl font-black transition-colors duration-300 ${
+                  hasNewVotesHighlight ? 'text-emerald-700' : 'text-emerald-600'
+                }`}
+              >
                 {currentElection.totalVotesCount || 0}
               </span>
             </div>
@@ -236,6 +392,50 @@ export const AdminResults: React.FC = () => {
                 {positions.length}
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Official Record-Keeping & Archival Card */}
+      {currentElection && (
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 rounded-3xl p-6 sm:p-7 text-white shadow-md border border-slate-700 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Official Record-Keeping & Institutional Gazette</span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+              Export Official Election Tallies (.CSV)
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Export an authenticated tally sheet adhering to RFC 4180 with UTF-8 BOM encoding for Microsoft Excel and Google Sheets. The export includes institutional metadata, voter turnout ratios, candidate academic departments, year of study, vote counts, percentage shares, margins of victory, and Electoral Commission verification hashes.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-slate-400">
+              <span className="inline-flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                Immutable Audit Trail
+              </span>
+              <span>•</span>
+              <span>Format: Standard CSV (UTF-8 with BOM)</span>
+              <span>•</span>
+              <span>Offices: {positions.length}</span>
+              <span>•</span>
+              <span>Candidates: {candidates.length}</span>
+            </div>
+          </div>
+
+          <div className="shrink-0 w-full lg:w-auto">
+            <button
+              id="download-csv-card-btn"
+              type="button"
+              onClick={handleDownloadResults}
+              disabled={downloading || !currentElection}
+              className="w-full lg:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 disabled:opacity-50 text-slate-950 rounded-2xl text-sm font-extrabold shadow-lg transition-all cursor-pointer"
+              title="Download Certified Election Tallies as CSV"
+            >
+              <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
+              <span>{downloading ? 'Generating CSV...' : 'Download CSV'}</span>
+            </button>
           </div>
         </div>
       )}

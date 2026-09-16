@@ -133,7 +133,7 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
   if (variant === 'compact') {
     if (time.isExpired) {
       return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">
+        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
           <Clock className="w-3.5 h-3.5 text-slate-500" />
           <span>Polls Closed</span>
         </div>
@@ -141,14 +141,14 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
     }
 
     const colorClass = time.isCritical
-      ? 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse'
+      ? 'bg-rose-50 text-rose-800 border-rose-200'
       : time.isUrgent
       ? 'bg-amber-50 text-amber-800 border-amber-200'
-      : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+      : 'bg-slate-100 text-[#102a43] border-slate-200';
 
     return (
       <div
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono font-bold ${colorClass}`}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-xs font-mono font-semibold ${colorClass}`}
         title={`Ends ${new Date(election.endDate).toLocaleString()}`}
       >
         <Hourglass className="w-3.5 h-3.5 shrink-0" />
@@ -164,7 +164,7 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
   if (variant === 'card') {
     if (time.isExpired) {
       return (
-        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-600 text-xs flex items-center justify-between">
+        <div className="p-3 bg-slate-50 rounded-md border border-slate-200 text-slate-600 text-xs flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-slate-400" />
             <span className="font-semibold">Voting Window Concluded</span>
@@ -175,7 +175,7 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
     }
 
     return (
-      <div className={`p-3.5 rounded-xl border transition-colors ${
+      <div className={`p-3 rounded-md border transition-colors ${
         time.isCritical
           ? 'bg-rose-50/70 border-rose-200 text-rose-950'
           : time.isUrgent
@@ -185,7 +185,7 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
         <div className="flex items-center justify-between text-xs mb-2">
           <div className="flex items-center gap-1.5 font-semibold">
             <span className={`w-2 h-2 rounded-full ${
-              time.isCritical ? 'bg-rose-500 animate-ping' : time.isUrgent ? 'bg-amber-500' : 'bg-emerald-500'
+              time.isCritical ? 'bg-rose-500 animate-ping' : time.isUrgent ? 'bg-amber-500' : 'bg-[#102a43]'
             }`} />
             <span>Time Remaining to Vote</span>
           </div>
@@ -196,26 +196,26 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
 
         {/* 4 Digit Boxes */}
         <div className="grid grid-cols-4 gap-1.5 text-center">
-          <div className="bg-white rounded-lg py-1.5 border border-slate-200/80 shadow-2xs">
-            <div className="text-base font-black font-mono tracking-tight text-slate-900 leading-tight">
+          <div className="bg-white rounded-md py-1.5 border border-slate-200 shadow-2xs">
+            <div className="text-base font-bold font-mono tracking-tight text-[#102a43] leading-tight">
               {pad(time.days)}
             </div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Days</div>
           </div>
-          <div className="bg-white rounded-lg py-1.5 border border-slate-200/80 shadow-2xs">
-            <div className="text-base font-black font-mono tracking-tight text-slate-900 leading-tight">
+          <div className="bg-white rounded-md py-1.5 border border-slate-200 shadow-2xs">
+            <div className="text-base font-bold font-mono tracking-tight text-[#102a43] leading-tight">
               {pad(time.hours)}
             </div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Hours</div>
           </div>
-          <div className="bg-white rounded-lg py-1.5 border border-slate-200/80 shadow-2xs">
-            <div className="text-base font-black font-mono tracking-tight text-slate-900 leading-tight">
+          <div className="bg-white rounded-md py-1.5 border border-slate-200 shadow-2xs">
+            <div className="text-base font-bold font-mono tracking-tight text-[#102a43] leading-tight">
               {pad(time.minutes)}
             </div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Mins</div>
           </div>
-          <div className="bg-white rounded-lg py-1.5 border border-slate-200/80 shadow-2xs">
-            <div className="text-base font-black font-mono tracking-tight text-emerald-600 leading-tight">
+          <div className="bg-white rounded-md py-1.5 border border-slate-200 shadow-2xs">
+            <div className="text-base font-bold font-mono tracking-tight text-[#102a43] leading-tight">
               {pad(time.seconds)}
             </div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Secs</div>
@@ -229,32 +229,23 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
   return (
     <div
       id={`election-countdown-banner-${election.id}`}
-      className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl transition-all border ${
-        time.isCritical
-          ? 'bg-gradient-to-br from-rose-950 via-slate-900 to-rose-900 border-rose-500/40 shadow-rose-900/20'
-          : time.isUrgent
-          ? 'bg-gradient-to-br from-amber-950 via-slate-900 to-emerald-950 border-amber-500/40 shadow-amber-900/20'
-          : 'bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border-emerald-600/40 shadow-emerald-900/20'
-      }`}
+      className="relative overflow-hidden rounded-lg p-6 sm:p-7 text-white shadow-xs transition-all border border-slate-200 border-t-4 border-t-[#102a43] bg-[#102a43]"
     >
-      {/* Background radial accent */}
-      <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
       <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-8">
         {/* Left Column: Context & Titles */}
-        <div className="space-y-3 max-w-xl">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+        <div className="space-y-2.5 max-w-xl">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm text-xs font-bold uppercase tracking-wider ${
               time.isExpired
                 ? 'bg-slate-800 text-slate-300 border border-slate-700'
                 : time.isCritical
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-400/40 animate-pulse'
+                ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
                 : time.isUrgent
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
-                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
+                : 'bg-white/15 text-white border border-white/20'
             }`}>
               <span className={`w-2 h-2 rounded-full ${
-                time.isExpired ? 'bg-slate-400' : time.isCritical ? 'bg-rose-400 animate-ping' : 'bg-amber-400'
+                time.isExpired ? 'bg-slate-400' : time.isCritical ? 'bg-rose-400' : 'bg-emerald-400'
               }`} />
               <span>
                 {time.isExpired
@@ -273,31 +264,31 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
           </div>
 
           <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
               {election.title}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1 line-clamp-2">
+            <p className="text-xs text-slate-300 mt-1 line-clamp-2">
               {election.description}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-1">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-0.5">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+              <Calendar className="w-3.5 h-3.5 text-slate-300" />
               <span>Closes: <strong className="text-white">{new Date(election.endDate).toLocaleString()}</strong></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <ShieldCheck className="w-3.5 h-3.5 text-slate-300" />
               <span>Soroti University Independent EC</span>
             </div>
           </div>
         </div>
 
         {/* Right Column: Dynamic Countdown Digits & Action CTA */}
-        <div className="w-full lg:w-auto flex flex-col items-center sm:items-end gap-4">
+        <div className="w-full lg:w-auto flex flex-col items-center sm:items-end gap-3.5">
           {time.isExpired ? (
-            <div className="w-full sm:w-auto bg-slate-900/80 border border-slate-700/80 rounded-2xl p-5 text-center sm:text-right">
-              <div className="text-lg font-bold text-slate-200">The polls have officially closed</div>
+            <div className="w-full sm:w-auto bg-slate-900/60 border border-slate-700/80 rounded-md p-4 text-center sm:text-right">
+              <div className="text-base font-bold text-slate-200">The polls have officially closed</div>
               <p className="text-xs text-slate-400 mt-1">
                 Ballot counting and results verification are underway by the Electoral Commission.
               </p>
@@ -309,43 +300,43 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
               </span>
 
               {/* Countdown Digits Grid */}
-              <div className="grid grid-cols-4 gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="grid grid-cols-4 gap-2 w-full sm:w-auto">
                 {/* Days */}
-                <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/10 shadow-inner text-center min-w-[64px] sm:min-w-[80px]">
-                  <span className="block text-2xl sm:text-4xl font-black font-mono text-white tracking-tight leading-none">
+                <div className="bg-white/10 rounded-md p-2.5 sm:p-3 border border-white/15 text-center min-w-[60px] sm:min-w-[72px]">
+                  <span className="block text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight leading-none">
                     {pad(time.days)}
                   </span>
-                  <span className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mt-1.5">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-300 mt-1">
                     Days
                   </span>
                 </div>
 
                 {/* Hours */}
-                <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/10 shadow-inner text-center min-w-[64px] sm:min-w-[80px]">
-                  <span className="block text-2xl sm:text-4xl font-black font-mono text-white tracking-tight leading-none">
+                <div className="bg-white/10 rounded-md p-2.5 sm:p-3 border border-white/15 text-center min-w-[60px] sm:min-w-[72px]">
+                  <span className="block text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight leading-none">
                     {pad(time.hours)}
                   </span>
-                  <span className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mt-1.5">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-300 mt-1">
                     Hours
                   </span>
                 </div>
 
                 {/* Minutes */}
-                <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/10 shadow-inner text-center min-w-[64px] sm:min-w-[80px]">
-                  <span className="block text-2xl sm:text-4xl font-black font-mono text-white tracking-tight leading-none">
+                <div className="bg-white/10 rounded-md p-2.5 sm:p-3 border border-white/15 text-center min-w-[60px] sm:min-w-[72px]">
+                  <span className="block text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight leading-none">
                     {pad(time.minutes)}
                   </span>
-                  <span className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mt-1.5">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-300 mt-1">
                     Mins
                   </span>
                 </div>
 
                 {/* Seconds */}
-                <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-emerald-500/30 shadow-inner text-center min-w-[64px] sm:min-w-[80px]">
-                  <span className="block text-2xl sm:text-4xl font-black font-mono text-amber-300 tracking-tight leading-none">
+                <div className="bg-white/10 rounded-md p-2.5 sm:p-3 border border-white/15 text-center min-w-[60px] sm:min-w-[72px]">
+                  <span className="block text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight leading-none">
                     {pad(time.seconds)}
                   </span>
-                  <span className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-amber-400/80 mt-1.5">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-300 mt-1">
                     Secs
                   </span>
                 </div>
@@ -354,9 +345,9 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
           )}
 
           {/* Quick Action Link / Status */}
-          <div className="w-full sm:w-auto flex items-center justify-end gap-3 pt-1">
+          <div className="w-full sm:w-auto flex items-center justify-end gap-3">
             {hasVoted ? (
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-900/70 border border-emerald-500/40 text-emerald-200 text-xs font-bold">
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-md bg-white/15 border border-white/20 text-white text-xs font-semibold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Your ballot has been cast and recorded</span>
               </div>
@@ -364,7 +355,7 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
               <Link
                 id="countdown-vote-now-btn"
                 to={`/voter/election/${election.id}`}
-                className="w-full sm:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 group cursor-pointer active:scale-95"
+                className="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-slate-100 text-[#102a43] font-bold text-xs sm:text-sm rounded-md shadow-xs transition-all flex items-center justify-center gap-2 group cursor-pointer"
               >
                 <Vote className="w-4 h-4" />
                 <span>Cast Your Vote Now</span>
@@ -373,7 +364,7 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
             ) : (
               <Link
                 to={`/voter/election/${election.id}`}
-                className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                className="w-full sm:w-auto px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs rounded-md border border-white/20 transition-colors"
               >
                 View Candidates & Manifestos
               </Link>
@@ -384,16 +375,14 @@ export const ElectionCountdown: React.FC<ElectionCountdownProps> = ({
 
       {/* Elapsed Election Window Progress Bar */}
       {!time.isExpired && time.percentElapsed > 0 && (
-        <div className="mt-6 pt-4 border-t border-white/10">
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
+        <div className="mt-5 pt-3.5 border-t border-white/15">
+          <div className="flex items-center justify-between text-[11px] text-slate-300 mb-1">
             <span>Polling Window Progress</span>
-            <span className="font-mono text-emerald-300 font-semibold">{time.percentElapsed}% Elapsed</span>
+            <span className="font-mono text-white font-semibold">{time.percentElapsed}% Elapsed</span>
           </div>
-          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all duration-1000 ${
-                time.isCritical ? 'bg-rose-500' : time.isUrgent ? 'bg-amber-400' : 'bg-emerald-400'
-              }`}
+              className="h-full bg-white transition-all duration-1000"
               style={{ width: `${time.percentElapsed}%` }}
             />
           </div>

@@ -13,6 +13,7 @@ import { auth, db } from '../services/firebase';
 import { UserProfile, UserStatus } from '../types';
 import { createUserProfile, getUserProfile } from '../services/voterService';
 import { seedInitialNUSUSADataIfNeeded } from '../services/electionService';
+import { findAutoQualifiedStudent } from '../data/officialQualifiedStudents';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -70,17 +71,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const defaultRole = isRootAdmin || adminDocExists ? 'admin' : 'voter';
-    const defaultStatus: UserStatus = isRootAdmin || adminDocExists ? 'approved' : 'pending';
+    const autoMatch = findAutoQualifiedStudent(user.email || '') || findAutoQualifiedStudent(user.email?.split('@')[0] || '');
+    const isAutoApproved = !!autoMatch;
+    const defaultStatus: UserStatus = isRootAdmin || adminDocExists || isAutoApproved ? 'approved' : 'pending';
 
     if (!profile) {
       const newProfile: UserProfile = {
         id: user.uid,
-        fullName: user.displayName || user.email?.split('@')[0] || 'NUSUSA Student',
+        fullName: autoMatch?.fullName || user.displayName || user.email?.split('@')[0] || 'NUSUSA Student',
         email: user.email || '',
-        studentId: user.email?.split('@')[0] || 'STD-' + user.uid.slice(0, 6),
+        studentId: autoMatch?.registrationNumber || user.email?.split('@')[0] || 'STD-' + user.uid.slice(0, 6),
         status: defaultStatus,
         role: defaultRole,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        ...(isAutoApproved ? {
+          approvedAt: new Date().toISOString(),
+          approvedBy: 'System (Certified University Register)',
+          course: autoMatch?.course,
+          yearOfStudy: autoMatch?.yearOfStudy,
+          phoneNumber: autoMatch?.phoneNumber
+        } : {})
       };
 
       try {
@@ -89,13 +99,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Could not persist new user profile to Firestore:', err);
       }
       profile = newProfile;
-    } else if (isRootAdmin && (profile.role !== 'admin' || profile.status !== 'approved')) {
-      // Ensure root admin always holds admin privileges
-      profile = { ...profile, role: 'admin', status: 'approved' };
-      try {
-        await updateDoc(doc(db, 'users', user.uid), { role: 'admin', status: 'approved' });
-      } catch (err) {
-        console.warn('Could not update root admin status in users collection:', err);
+    } else {
+      // If user is designated root admin, ensure admin privileges
+      if (isRootAdmin && (profile.role !== 'admin' || profile.status !== 'approved')) {
+        profile = { ...profile, role: 'admin', status: 'approved' };
+        try {
+          await updateDoc(doc(db, 'users', user.uid), { role: 'admin', status: 'approved' });
+        } catch (err) {
+          console.warn('Could not update root admin status in users collection:', err);
+        }
+      } else if (isAutoApproved && profile.status === 'pending') {
+        // Automatically qualify student if on certified register
+        profile = {
+          ...profile,
+          status: 'approved',
+          fullName: autoMatch.fullName || profile.fullName,
+          studentId: autoMatch.registrationNumber || profile.studentId,
+          approvedAt: new Date().toISOString(),
+          approvedBy: 'System (Certified University Register)',
+          course: autoMatch.course || profile.course,
+          yearOfStudy: autoMatch.yearOfStudy || profile.yearOfStudy,
+          phoneNumber: autoMatch.phoneNumber || profile.phoneNumber
+        };
+        try {
+          await updateDoc(doc(db, 'users', user.uid), {
+            status: 'approved',
+            approvedAt: new Date().toISOString(),
+            approvedBy: 'System (Certified University Register)',
+            fullName: profile.fullName,
+            studentId: profile.studentId,
+            course: profile.course,
+            yearOfStudy: profile.yearOfStudy,
+            phoneNumber: profile.phoneNumber
+          });
+        } catch (err) {
+          console.warn('Could not auto-approve qualified user:', err);
+        }
       }
     }
 
