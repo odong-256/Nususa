@@ -69,9 +69,20 @@ export function isPermissionError(error: unknown): boolean {
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const errMsg = getErrorMessage(error);
+  const lower = (errMsg || '').toLowerCase();
   
   // If it is an offline, network, or disabled API error, do NOT log as security rules assertion
-  if (isOfflineError(error)) {
+  if (
+    isOfflineError(error) ||
+    lower.includes('offline') ||
+    lower.includes('network') ||
+    lower.includes('unavailable') ||
+    lower.includes('backend') ||
+    lower.includes('failed to get document') ||
+    lower.includes('api has not been used') ||
+    lower.includes('could not reach') ||
+    lower.includes('service_disabled')
+  ) {
     console.warn(`[Firestore Offline/Unavailable] operation=${operationType} path=${path}: ${errMsg}`);
     throw new Error(`Firestore is currently offline or unreachable (${operationType} at ${path}): ${errMsg}`);
   }

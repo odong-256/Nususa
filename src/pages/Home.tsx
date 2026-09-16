@@ -52,7 +52,7 @@ export const Home: React.FC = () => {
     loadData();
   }, []);
 
-  const activeElection = elections.find(e => e.status === 'open') || elections[0];
+  const activeElection = elections.find(e => e.status === 'open') || elections.find(e => e.status === 'scheduled') || elections[0];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -127,9 +127,9 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. SUES SIGNATURE ELECTION INFORMATION CARD */}
-      {activeElection && (
-        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* 2. SUES SIGNATURE ELECTION INFORMATION CARD & COUNTDOWN */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {activeElection && (
           <div className="bg-white rounded-lg border border-slate-200 border-t-4 border-t-[#102a43] p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-2 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-2.5">
@@ -174,15 +174,17 @@ export const Home: React.FC = () => {
               )}
             </div>
           </div>
+        )}
 
-          {/* Official Election Countdown Timer */}
-          <ElectionCountdown
-            startDate={activeElection.startDate}
-            endDate={activeElection.endDate}
-            electionTitle={activeElection.title}
-          />
-        </section>
-      )}
+        {/* Official Dynamic Election Countdown Timer */}
+        <ElectionCountdown
+          startDate={activeElection?.startDate}
+          endDate={activeElection?.endDate}
+          electionTitle={activeElection?.title}
+          electionId={activeElection?.id}
+          status={activeElection?.status}
+        />
+      </section>
 
       {/* 3. HOW VOTING WORKS */}
       <section id="how-it-works" className="py-12 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -42,11 +42,13 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     }
     return null;
   } catch (error: any) {
-    if (isOfflineError(error)) {
+    const currentUser = auth.currentUser;
+    const isCurrentActiveUser = !!(currentUser && currentUser.uid === userId);
+
+    if (isOfflineError(error) || isCurrentActiveUser) {
       if (localProfile) return localProfile;
 
       // Synthesize fallback profile for active user
-      const currentUser = auth.currentUser;
       const email = (currentUser?.email || '').toLowerCase();
       const isRoot = email === ROOT_ADMIN_EMAIL.toLowerCase();
       const autoMatch = findAutoQualifiedStudent(email) || findAutoQualifiedStudent(userId);

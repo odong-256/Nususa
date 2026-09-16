@@ -51,10 +51,14 @@ export default function App() {
                 {/* Public Routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/candidates" element={<CandidatesGazette />} />
+                <Route path="/gazette" element={<Navigate to="/candidates" replace />} />
                 <Route path="/auth/login" element={<Login />} />
+                <Route path="/login" element={<Navigate to="/auth/login" replace />} />
                 <Route path="/auth/register" element={<Register />} />
+                <Route path="/register" element={<Navigate to="/auth/register" replace />} />
                 <Route path="/auth/pending-approval" element={<PendingApproval />} />
                 <Route path="/auth/status" element={<AccountStatus />} />
+                <Route path="/dashboard" element={<Navigate to="/voter/dashboard" replace />} />
 
                 {/* Protected Voter Routes */}
                 <Route element={<ProtectedVoterRoute />}>
