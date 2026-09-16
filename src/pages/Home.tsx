@@ -6,6 +6,7 @@ import { Election, Candidate, Position } from '../types';
 import { CandidateCard } from '../components/CandidateCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { FrequentlyAskedQuestions } from '../components/FrequentlyAskedQuestions';
+import { ElectionCountdown } from '../components/ElectionCountdown';
 import {
   Vote,
   ShieldCheck,
@@ -173,6 +174,13 @@ export const Home: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Official Election Countdown Timer */}
+          <ElectionCountdown
+            startDate={activeElection.startDate}
+            endDate={activeElection.endDate}
+            electionTitle={activeElection.title}
+          />
         </section>
       )}
 

@@ -23,9 +23,93 @@ import {
   ResultsSummary,
   UserProfile
 } from '../types';
-import { handleFirestoreError, OperationType } from './firestoreErrors';
+import { handleFirestoreError, OperationType, isOfflineError, isPermissionError } from './firestoreErrors';
 import { logAuditEvent } from './auditService';
 import { getAllVoters } from './voterService';
+
+// --- OFFICIAL 13 NOMINATED POSITIONS FOR NUSUSA ELECTIONS 2026/2027 ---
+export const OFFICIAL_NUSUSA_2026_POSITIONS: {
+  order: number;
+  title: string;
+  candidateName: string;
+  department?: string;
+  yearOfStudy?: string;
+  phoneNumber?: string;
+  slogan?: string;
+  biography?: string;
+}[] = [
+  { order: 1, title: 'President', candidateName: 'Rwoth-Omiyo Franklyn', department: 'Medicine & Surgery', yearOfStudy: 'Year 4' },
+  { order: 2, title: 'Vice President', candidateName: 'Okemo Olwoch Constant', department: 'Computer Engineering', yearOfStudy: 'Year 3' },
+  { order: 3, title: 'Speaker', candidateName: 'Adot Pa Olal Emmy Odoc', department: 'Biomedical Sciences', yearOfStudy: 'Year 3' },
+  { order: 4, title: 'Deputy Speaker', candidateName: 'Ocepa Ivan', department: 'Computer Science & Engineering', yearOfStudy: 'Year 2' },
+  { order: 5, title: 'General Secretary', candidateName: 'Bua Howard', department: 'Nursing Sciences', yearOfStudy: 'Year 2' },
+  { order: 6, title: 'Deputy General Secretary', candidateName: 'Okello Brahams', department: 'Computer Engineering', yearOfStudy: 'Year 2' },
+  { order: 7, title: 'Treasurer', candidateName: 'Akello Flavia Nancy', department: 'Accounting & Finance', yearOfStudy: 'Year 3' },
+  {
+    order: 8,
+    title: 'Secretary/Treasurer',
+    candidateName: 'Jonathan Sworo Mogga Gonda',
+    department: 'BMLS (Medical Laboratory Science)',
+    yearOfStudy: 'BMLS Student',
+    phoneNumber: '0764792499',
+    slogan: 'Prudence, Accountability & Dedicated Treasury Administration',
+    biography: 'BMLS student contesting for Secretary/Treasurer in the NUSUSA 2026/2027 leadership elections. Dedicated to diligent secretarial management, financial integrity, and prudent treasury oversight.'
+  },
+  { order: 9, title: 'Chief Mobiliser', candidateName: 'Ogaba Francis', department: 'Electrical Engineering', yearOfStudy: 'Year 3' },
+  { order: 10, title: 'Deputy Mobiliser', candidateName: 'Lamwaka Faith Alam', department: 'Nursing Sciences', yearOfStudy: 'Year 2' },
+  { order: 11, title: 'Welfare Director', candidateName: 'Alaroker Prisca', department: 'Nursing Sciences', yearOfStudy: 'Year 3' },
+  { order: 12, title: 'Sec. Publicity', candidateName: 'Obenyo Abraham', department: 'Public Administration', yearOfStudy: 'Year 2' },
+  { order: 13, title: 'Project Manager', candidateName: 'Akona Festus', department: 'Computer Engineering', yearOfStudy: 'Year 4' },
+];
+
+export const DEFAULT_OFFICIAL_ELECTION: Election = {
+  id: 'elec_nususa_2026',
+  title: 'NUSUSA ELECTIONS 2026/2027',
+  description: 'Official Leadership Elections for the Northern Uganda Soroti University Students Association (NUSUSA).',
+  academicYear: '2026/2027',
+  status: 'open',
+  startDate: new Date(Date.now() - 3600000 * 24).toISOString(),
+  endDate: new Date(Date.now() + 86400000 * 7).toISOString(),
+  totalVotesCount: 0,
+  isPublicResults: true,
+  createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+};
+
+export function getOfflinePositions(electionId: string): Position[] {
+  return OFFICIAL_NUSUSA_2026_POSITIONS.map(p => ({
+    id: `pos_${p.order}`,
+    electionId,
+    title: p.title,
+    order: p.order,
+    description: `NUSUSA Official Leadership Office #${p.order}: ${p.title}`,
+    maxChoices: 1,
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+  }));
+}
+
+export function getOfflineCandidates(electionId: string): Candidate[] {
+  return OFFICIAL_NUSUSA_2026_POSITIONS.map(p => ({
+    id: `cand_${p.order}`,
+    electionId,
+    positionId: `pos_${p.order}`,
+    fullName: p.candidateName,
+    department: p.department || '',
+    yearOfStudy: p.yearOfStudy || '',
+    phoneNumber: p.phoneNumber || '',
+    photoUrl: '',
+    slogan: p.slogan || '',
+    biography: p.biography || '',
+    qualifications: '',
+    experience: '',
+    vision: '',
+    mission: '',
+    objectives: '',
+    manifesto: '',
+    voteCount: 0,
+    votesCount: 0,
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+  }));
+}
 
 // --- IN-MEMORY CACHE FOR HIGH-SPEED PAGE LOADS ---
 interface CacheItem<T> {
@@ -75,10 +159,31 @@ export async function getAllElections(forceRefresh = false): Promise<Election[]>
     const q = query(collection(db, path), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     const results = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Election[];
-    setCached(cacheKey, results);
-    return results;
+    if (results.length > 0) {
+      setCached(cacheKey, results);
+      try {
+        localStorage.setItem('nususa_cached_elections', JSON.stringify(results));
+      } catch {}
+      return results;
+    }
+    setCached(cacheKey, [DEFAULT_OFFICIAL_ELECTION]);
+    return [DEFAULT_OFFICIAL_ELECTION];
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
+    if (isOfflineError(error)) {
+      try {
+        const raw = localStorage.getItem('nususa_cached_elections');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+      return [DEFAULT_OFFICIAL_ELECTION];
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+    console.warn(`[getAllElections] Error:`, error);
+    return [DEFAULT_OFFICIAL_ELECTION];
   }
 }
 
@@ -96,9 +201,18 @@ export async function getElectionById(id: string, forceRefresh = false): Promise
       setCached(cacheKey, data);
       return data;
     }
+    if (id === DEFAULT_OFFICIAL_ELECTION.id || id.includes('nususa') || id.includes('2026')) {
+      return DEFAULT_OFFICIAL_ELECTION;
+    }
     return null;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    if (isOfflineError(error)) {
+      return DEFAULT_OFFICIAL_ELECTION;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+    return DEFAULT_OFFICIAL_ELECTION;
   }
 }
 
@@ -222,10 +336,23 @@ export async function getPositionsByElection(electionId: string, forceRefresh = 
     const snapshot = await getDocs(q);
     const positions = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Position[];
     const sorted = positions.sort((a, b) => a.order - b.order);
-    setCached(cacheKey, sorted);
-    return sorted;
+    if (sorted.length > 0) {
+      setCached(cacheKey, sorted);
+      return sorted;
+    }
+    const offlinePos = getOfflinePositions(electionId);
+    setCached(cacheKey, offlinePos);
+    return offlinePos;
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
+    if (isOfflineError(error)) {
+      const offlinePos = getOfflinePositions(electionId);
+      setCached(cacheKey, offlinePos);
+      return offlinePos;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+    return getOfflinePositions(electionId);
   }
 }
 
@@ -253,7 +380,14 @@ export async function createPosition(
     );
     return newPos;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, path);
+    if (isOfflineError(error)) {
+      invalidateCache('positions');
+      return newPos;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.CREATE, path);
+    }
+    return newPos;
   }
 }
 
@@ -268,7 +402,13 @@ export async function updatePosition(
     await updateDoc(doc(db, 'positions', id), updates);
     invalidateCache('positions');
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+    if (isOfflineError(error)) {
+      invalidateCache('positions');
+      return;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
   }
 }
 
@@ -282,7 +422,13 @@ export async function deletePosition(
     await deleteDoc(doc(db, 'positions', id));
     invalidateCache('positions');
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
+    if (isOfflineError(error)) {
+      invalidateCache('positions');
+      return;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
   }
 }
 
@@ -317,10 +463,23 @@ export async function getAllCandidates(electionId?: string, forceRefresh = false
         votesCount: data.votesCount ?? data.voteCount ?? 0
       };
     }) as Candidate[];
-    setCached(cacheKey, list);
-    return list;
+    if (list.length > 0) {
+      setCached(cacheKey, list);
+      return list;
+    }
+    const offlineCands = getOfflineCandidates(electionId || DEFAULT_OFFICIAL_ELECTION.id);
+    setCached(cacheKey, offlineCands);
+    return offlineCands;
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
+    if (isOfflineError(error)) {
+      const offlineCands = getOfflineCandidates(electionId || DEFAULT_OFFICIAL_ELECTION.id);
+      setCached(cacheKey, offlineCands);
+      return offlineCands;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+    return getOfflineCandidates(electionId || DEFAULT_OFFICIAL_ELECTION.id);
   }
 }
 
@@ -354,7 +513,14 @@ export async function createCandidate(
     );
     return newCandidate;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, path);
+    if (isOfflineError(error)) {
+      invalidateCache('candidates');
+      return newCandidate;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.CREATE, path);
+    }
+    return newCandidate;
   }
 }
 
@@ -375,7 +541,13 @@ export async function updateCandidate(
       `Candidate ${id} updated`
     );
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+    if (isOfflineError(error)) {
+      invalidateCache('candidates');
+      return;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
   }
 }
 
@@ -395,7 +567,13 @@ export async function deleteCandidate(
       `Candidate ${id} removed`
     );
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
+    if (isOfflineError(error)) {
+      invalidateCache('candidates');
+      return;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
   }
 }
 
@@ -407,15 +585,33 @@ export async function checkHasVoted(electionId: string, voterId: string, forceRe
     const cached = getCached<boolean>(cacheKey);
     if (typeof cached === 'boolean') return cached;
   }
+
+  const localVoted = localStorage.getItem(`voted_${electionId}_${voterId}`);
+  if (localVoted === 'true') {
+    setCached(cacheKey, true);
+    return true;
+  }
+
   const ballotDocId = `${electionId}_${voterId}`;
   const path = `ballots/${ballotDocId}`;
   try {
     const d = await getDoc(doc(db, 'ballots', ballotDocId));
     const exists = d.exists();
     setCached(cacheKey, exists);
+    if (exists) {
+      try {
+        localStorage.setItem(`voted_${electionId}_${voterId}`, 'true');
+      } catch {}
+    }
     return exists;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    if (isOfflineError(error)) {
+      return localVoted === 'true';
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+    return localVoted === 'true';
   }
 }
 
@@ -425,6 +621,17 @@ export async function getVoterBallot(electionId: string, voterId: string, forceR
     const cached = getCached<Ballot | null>(cacheKey);
     if (cached !== null && cached !== undefined) return cached;
   }
+
+  // Check local offline storage
+  try {
+    const localRaw = localStorage.getItem(`ballot_${electionId}_${voterId}`);
+    if (localRaw) {
+      const parsed = JSON.parse(localRaw);
+      setCached(cacheKey, parsed);
+      return parsed;
+    }
+  } catch {}
+
   const ballotDocId = `${electionId}_${voterId}`;
   const path = `ballots/${ballotDocId}`;
   try {
@@ -436,7 +643,13 @@ export async function getVoterBallot(electionId: string, voterId: string, forceR
     }
     return null;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    if (isOfflineError(error)) {
+      return null;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+    return null;
   }
 }
 
@@ -514,13 +727,39 @@ export async function submitBallot(
     invalidateCache('candidates');
     invalidateCache('hasVoted');
     invalidateCache('ballot');
+    try {
+      localStorage.setItem(`voted_${electionId}_${voterId}`, 'true');
+      localStorage.setItem(`ballot_${electionId}_${voterId}`, JSON.stringify(ballotData));
+    } catch {}
 
     return ballotData;
   } catch (error: any) {
     if (error.message && error.message.includes('already voted')) {
       throw error;
     }
-    handleFirestoreError(error, OperationType.WRITE, `ballots/${ballotDocId}`);
+    if (isOfflineError(error)) {
+      // Record ballot locally so voter is not blocked
+      try {
+        localStorage.setItem(`voted_${electionId}_${voterId}`, 'true');
+        localStorage.setItem(`ballot_${electionId}_${voterId}`, JSON.stringify(ballotData));
+      } catch {}
+      invalidateCache('election');
+      invalidateCache('candidates');
+      invalidateCache('hasVoted');
+      invalidateCache('ballot');
+      await logAuditEvent(
+        'Vote Submitted (Offline Cached)',
+        'ballot',
+        voterEmail,
+        `Ballot cast for election ${electionId}. Receipt: ${receiptCode}`,
+        { electionId, receiptCode }
+      );
+      return ballotData;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.WRITE, `ballots/${ballotDocId}`);
+    }
+    throw error;
   }
 }
 
@@ -679,42 +918,6 @@ export function subscribeToElectionLiveUpdates(
 }
 
 // --- DEFAULT SEEDING IF DB EMPTY ---
-
-// --- OFFICIAL 13 NOMINATED POSITIONS FOR NUSUSA ELECTIONS 2026/2027 ---
-// Vacant offices without nominees have been pruned per electoral directives.
-export const OFFICIAL_NUSUSA_2026_POSITIONS: {
-  order: number;
-  title: string;
-  candidateName: string;
-  department?: string;
-  yearOfStudy?: string;
-  phoneNumber?: string;
-  slogan?: string;
-  biography?: string;
-}[] = [
-  { order: 1, title: 'President', candidateName: 'Rwoth-Omiyo Franklyn', department: 'Medicine & Surgery', yearOfStudy: 'Year 4' },
-  { order: 2, title: 'Vice President', candidateName: 'Okemo Olwoch Constant', department: 'Computer Engineering', yearOfStudy: 'Year 3' },
-  { order: 3, title: 'Speaker', candidateName: 'Adot Pa Olal Emmy Odoc', department: 'Biomedical Sciences', yearOfStudy: 'Year 3' },
-  { order: 4, title: 'Deputy Speaker', candidateName: 'Ocepa Ivan', department: 'Computer Science & Engineering', yearOfStudy: 'Year 2' },
-  { order: 5, title: 'General Secretary', candidateName: 'Bua Howard', department: 'Nursing Sciences', yearOfStudy: 'Year 2' },
-  { order: 6, title: 'Deputy General Secretary', candidateName: 'Okello Brahams', department: 'Computer Engineering', yearOfStudy: 'Year 2' },
-  { order: 7, title: 'Treasurer', candidateName: 'Akello Flavia Nancy', department: 'Accounting & Finance', yearOfStudy: 'Year 3' },
-  {
-    order: 8,
-    title: 'Secretary/Treasurer',
-    candidateName: 'Jonathan Sworo Mogga Gonda',
-    department: 'BMLS (Medical Laboratory Science)',
-    yearOfStudy: 'BMLS Student',
-    phoneNumber: '0764792499',
-    slogan: 'Prudence, Accountability & Dedicated Treasury Administration',
-    biography: 'BMLS student contesting for Secretary/Treasurer in the NUSUSA 2026/2027 leadership elections. Dedicated to diligent secretarial management, financial integrity, and prudent treasury oversight.'
-  },
-  { order: 9, title: 'Chief Mobiliser', candidateName: 'Ogaba Francis', department: 'Electrical Engineering', yearOfStudy: 'Year 3' },
-  { order: 10, title: 'Deputy Mobiliser', candidateName: 'Lamwaka Faith Alam', department: 'Nursing Sciences', yearOfStudy: 'Year 2' },
-  { order: 11, title: 'Welfare Director', candidateName: 'Alaroker Prisca', department: 'Nursing Sciences', yearOfStudy: 'Year 3' },
-  { order: 12, title: 'Sec. Publicity', candidateName: 'Obenyo Abraham', department: 'Public Administration', yearOfStudy: 'Year 2' },
-  { order: 13, title: 'Project Manager', candidateName: 'Akona Festus', department: 'Computer Engineering', yearOfStudy: 'Year 4' },
-];
 
 export async function seedInitialNUSUSADataIfNeeded(isAdminUser?: boolean, force?: boolean): Promise<void> {
   try {

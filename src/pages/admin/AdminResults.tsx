@@ -257,8 +257,8 @@ export const AdminResults: React.FC = () => {
 
           {/* Primary Download CSV Button for Official Record-Keeping */}
           <button
-            id="download-csv-btn"
-            data-testid="download-csv-btn"
+            id="download-results-btn"
+            data-testid="download-results-btn"
             type="button"
             onClick={handleDownloadResults}
             disabled={downloading || !currentElection}
@@ -266,7 +266,7 @@ export const AdminResults: React.FC = () => {
             title="Download Audited Election Tallies CSV for Official Record-Keeping"
           >
             <Download className={`w-3.5 h-3.5 ${downloading ? 'animate-bounce' : ''}`} />
-            <span>{downloading ? 'Preparing CSV...' : 'Download CSV'}</span>
+            <span>{downloading ? 'Exporting Results...' : 'Download Results'}</span>
           </button>
         </div>
       </div>

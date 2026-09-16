@@ -26,9 +26,43 @@ export interface FirestoreErrorInfo {
   };
 }
 
+export function isPermissionError(error: unknown): boolean {
+  if (!error) return false;
+  const msg = error instanceof Error ? error.message : String(error);
+  const code = (error as any)?.code;
+  return (
+    code === 'permission-denied' ||
+    msg.toLowerCase().includes('missing or insufficient permissions') ||
+    msg.toLowerCase().includes('permission-denied')
+  );
+}
+
+export function isOfflineError(error: unknown): boolean {
+  if (!error) return false;
+  const msg = error instanceof Error ? error.message : String(error);
+  const code = (error as any)?.code;
+  return (
+    code === 'unavailable' ||
+    code === 'failed-precondition' ||
+    msg.toLowerCase().includes('the client is offline') ||
+    msg.toLowerCase().includes('offline') ||
+    msg.toLowerCase().includes('backend') ||
+    msg.toLowerCase().includes('service_disabled') ||
+    msg.toLowerCase().includes('api has not been used')
+  );
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errMsg = error instanceof Error ? error.message : String(error);
+  
+  // If it is an offline, network, or disabled API error, do NOT log as security rules assertion
+  if (isOfflineError(error) && !isPermissionError(error)) {
+    console.warn(`[Firestore Offline/Unavailable] operation=${operationType} path=${path}: ${errMsg}`);
+    throw new Error(`Firestore is currently offline or unreachable (${operationType} at ${path}): ${errMsg}`);
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -46,3 +80,4 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
+

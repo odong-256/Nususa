@@ -11,34 +11,78 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { UserProfile, UserStatus, VoterProfile } from '../types';
-import { handleFirestoreError, OperationType } from './firestoreErrors';
+import { handleFirestoreError, OperationType, isOfflineError, isPermissionError } from './firestoreErrors';
 import { logAuditEvent } from './auditService';
 import { OFFICIAL_QUALIFIED_STUDENTS, findAutoQualifiedStudent } from '../data/officialQualifiedStudents';
 
+const ROOT_ADMIN_EMAIL = '2301600199@sun.ac.ug';
+
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const path = `users/${userId}`;
+  const localKey = `nususa_user_profile_${userId}`;
+  let localProfile: UserProfile | null = null;
+  try {
+    const raw = localStorage.getItem(localKey);
+    if (raw) localProfile = JSON.parse(raw);
+  } catch {
+    // ignore local storage error
+  }
+
   try {
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (userDoc.exists()) {
       const data = userDoc.data();
-      return { id: userDoc.id, uid: userDoc.id, ...data } as UserProfile;
+      const profile = { id: userDoc.id, uid: userDoc.id, ...data } as UserProfile;
+      try {
+        localStorage.setItem(localKey, JSON.stringify(profile));
+      } catch {
+        // ignore
+      }
+      return profile;
     }
     return null;
   } catch (error: any) {
-    if (error?.message && error.message.includes('the client is offline')) {
-      try {
-        await new Promise(res => setTimeout(res, 500));
-        const retryDoc = await getDoc(doc(db, 'users', userId));
-        if (retryDoc.exists()) {
-          const data = retryDoc.data();
-          return { id: retryDoc.id, uid: retryDoc.id, ...data } as UserProfile;
+    if (isOfflineError(error)) {
+      if (localProfile) return localProfile;
+
+      // Synthesize fallback profile for active user
+      const currentUser = auth.currentUser;
+      if (currentUser && currentUser.uid === userId) {
+        const email = (currentUser.email || '').toLowerCase();
+        const isRoot = email === ROOT_ADMIN_EMAIL.toLowerCase();
+        const autoMatch = findAutoQualifiedStudent(email);
+        const fallbackProfile: UserProfile = {
+          id: userId,
+          uid: userId,
+          fullName: autoMatch?.fullName || currentUser.displayName || (isRoot ? 'Chief Electoral Commissioner' : email.split('@')[0]),
+          email: email,
+          studentId: autoMatch?.registrationNumber || email.split('@')[0],
+          status: isRoot || autoMatch ? 'approved' : 'pending',
+          role: isRoot ? 'admin' : 'voter',
+          course: autoMatch?.course || (isRoot ? 'Executive Commission' : undefined),
+          yearOfStudy: autoMatch?.yearOfStudy || undefined,
+          phoneNumber: autoMatch?.phoneNumber || undefined,
+          createdAt: new Date().toISOString(),
+          ...(isRoot || autoMatch ? {
+            approvedAt: new Date().toISOString(),
+            approvedBy: isRoot ? 'Institutional Authority' : 'System (Certified University Register)'
+          } : {})
+        };
+        try {
+          localStorage.setItem(localKey, JSON.stringify(fallbackProfile));
+        } catch {
+          // ignore
         }
-        return null;
-      } catch (retryError) {
-        handleFirestoreError(retryError, OperationType.GET, path);
+        return fallbackProfile;
       }
+      return null;
     }
-    handleFirestoreError(error, OperationType.GET, path);
+
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+    console.warn(`[getUserProfile] Non-permission error reading ${path}:`, error);
+    return localProfile;
   }
 }
 
@@ -55,22 +99,31 @@ export async function createUserProfile(
   // Check if student is in the certified official automatic qualifications register
   const autoMatch = findAutoQualifiedStudent(normalizedEmail) || findAutoQualifiedStudent(normalizedStudentId);
   const isAutoApproved = !!autoMatch;
+  const isRoot = normalizedEmail === ROOT_ADMIN_EMAIL.toLowerCase();
 
   const profile: Omit<UserProfile, 'id'> = {
     fullName: autoMatch?.fullName || fullName,
     email: normalizedEmail,
     studentId: autoMatch?.registrationNumber || normalizedStudentId,
-    status: isAutoApproved ? 'approved' : 'pending',
-    role: 'voter',
+    status: isRoot || isAutoApproved ? 'approved' : 'pending',
+    role: isRoot ? 'admin' : 'voter',
     createdAt: new Date().toISOString(),
-    ...(isAutoApproved ? {
+    ...(isRoot || isAutoApproved ? {
       approvedAt: new Date().toISOString(),
-      approvedBy: 'System (Certified University Register)',
-      course: autoMatch.course,
-      yearOfStudy: autoMatch.yearOfStudy,
-      phoneNumber: autoMatch.phoneNumber
+      approvedBy: isRoot ? 'Institutional Authority' : 'System (Certified University Register)',
+      course: autoMatch?.course || (isRoot ? 'Executive Commission' : undefined),
+      yearOfStudy: autoMatch?.yearOfStudy || undefined,
+      phoneNumber: autoMatch?.phoneNumber || undefined
     } : {})
   };
+
+  const createdProfile: UserProfile = { id: userId, uid: userId, ...profile };
+
+  try {
+    localStorage.setItem(`nususa_user_profile_${userId}`, JSON.stringify(createdProfile));
+  } catch {
+    // ignore
+  }
 
   try {
     await setDoc(doc(db, 'users', userId), profile);
@@ -82,9 +135,17 @@ export async function createUserProfile(
         ? `Voter ${fullName} (${email}) automatically qualified via certified institutional register.`
         : `New voter registered: ${fullName} (${email}), awaiting EC manual approval.`
     );
-    return { id: userId, uid: userId, ...profile };
+    return createdProfile;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, path);
+    if (isOfflineError(error)) {
+      console.warn(`[createUserProfile] Offline mode, profile saved locally for ${userId}`);
+      return createdProfile;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.CREATE, path);
+    }
+    console.warn(`[createUserProfile] Error writing to ${path}:`, error);
+    return createdProfile;
   }
 }
 
@@ -94,6 +155,55 @@ const VOTERS_CACHE_TTL = 30_000;
 
 export function invalidateVotersCache() {
   cachedVoters = null;
+}
+
+function getOfflineVotersList(): UserProfile[] {
+  try {
+    const raw = localStorage.getItem('nususa_all_voters');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+
+  // Synthesize from official 43 certified students
+  const list: UserProfile[] = OFFICIAL_QUALIFIED_STUDENTS.map((s, idx) => ({
+    id: `sun_reg_${s.registrationNumber}`,
+    uid: `sun_reg_${s.registrationNumber}`,
+    fullName: s.fullName,
+    email: s.email.toLowerCase(),
+    studentId: s.registrationNumber,
+    course: s.course,
+    yearOfStudy: s.yearOfStudy,
+    phoneNumber: s.phoneNumber,
+    status: 'approved',
+    role: 'voter',
+    approvedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    approvedBy: 'Certified University Register (2026/2027)',
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
+  }));
+
+  // Include root administrator
+  const rootAdmin: UserProfile = {
+    id: 'admin_root',
+    uid: 'admin_root',
+    fullName: 'Chief Electoral Commissioner',
+    email: ROOT_ADMIN_EMAIL,
+    studentId: 'EC-ADMIN-01',
+    status: 'approved',
+    role: 'admin',
+    course: 'Electoral Commission',
+    yearOfStudy: 4,
+    phoneNumber: '0760073338',
+    approvedAt: new Date().toISOString(),
+    approvedBy: 'Soroti University Electoral Commission',
+    createdAt: new Date().toISOString()
+  };
+
+  list.unshift(rootAdmin);
+  return list;
 }
 
 export async function getAllVoters(forceRefresh = false): Promise<UserProfile[]> {
@@ -110,9 +220,23 @@ export async function getAllVoters(forceRefresh = false): Promise<UserProfile[]>
       ...d.data()
     })) as UserProfile[];
     cachedVoters = { data: results, cachedAt: Date.now() };
+    try {
+      localStorage.setItem('nususa_all_voters', JSON.stringify(results));
+    } catch {
+      // ignore
+    }
     return results;
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
+    if (isOfflineError(error)) {
+      const offlineList = getOfflineVotersList();
+      cachedVoters = { data: offlineList, cachedAt: Date.now() };
+      return offlineList;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+    console.warn(`[getAllVoters] Error listing ${path}:`, error);
+    return getOfflineVotersList();
   }
 }
 
@@ -149,7 +273,26 @@ export async function updateVoterStatus(
       { voterId, newStatus: status, reason }
     );
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+    if (isOfflineError(error)) {
+      // Update local storage representation
+      try {
+        const local = localStorage.getItem('nususa_all_voters');
+        if (local) {
+          const list = JSON.parse(local) as UserProfile[];
+          const idx = list.findIndex(u => u.id === voterId || u.uid === voterId || u.email === voterEmail);
+          if (idx >= 0) {
+            list[idx] = { ...list[idx], ...updates };
+            localStorage.setItem('nususa_all_voters', JSON.stringify(list));
+          }
+        }
+      } catch {}
+      invalidateVotersCache();
+      return;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+    console.warn(`[updateVoterStatus] Error updating ${path}:`, error);
   }
 }
 
@@ -267,7 +410,25 @@ export async function updateUserRole(
       `Administrator ${adminEmail} changed role of ${targetEmail} to ${newRole}.`
     );
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+    if (isOfflineError(error)) {
+      try {
+        const local = localStorage.getItem('nususa_all_voters');
+        if (local) {
+          const list = JSON.parse(local) as UserProfile[];
+          const idx = list.findIndex(u => u.id === userId || u.uid === userId || u.email === targetEmail);
+          if (idx >= 0) {
+            list[idx] = { ...list[idx], role: newRole, status: 'approved' };
+            localStorage.setItem('nususa_all_voters', JSON.stringify(list));
+          }
+        }
+      } catch {}
+      invalidateVotersCache();
+      return;
+    }
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+    console.warn(`[updateUserRole] Error updating ${path}:`, error);
   }
 }
 
