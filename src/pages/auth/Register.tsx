@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Vote, Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, ShieldAlert, Copy, ExternalLink } from 'lucide-react';
-import firebaseConfig from '../../../firebase-applet-config.json';
+import { firebaseConfig } from '../../services/firebaseConfig';
 
 export const Register: React.FC = () => {
   const [fullName, setFullName] = useState('');

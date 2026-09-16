@@ -4,7 +4,7 @@ import { sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Vote, Lock, Mail, AlertCircle, ArrowRight, CheckCircle2, KeyRound, Copy, ExternalLink, RotateCcw } from 'lucide-react';
-import firebaseConfig from '../../../firebase-applet-config.json';
+import { firebaseConfig } from '../../services/firebaseConfig';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
